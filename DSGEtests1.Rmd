@@ -1,0 +1,159 @@
+---
+title: "DSGE Replication Tests"
+output:
+  pdf_document: 
+    toc: true
+    fig_caption: yes
+    latex_engine: lualatex
+header-includes:
+  - \usepackage{amsmath}
+---
+\newpage
+
+
+
+
+```{r library_setup, results=FALSE, warning=FALSE, message=FALSE, echo=FALSE}
+rm(list=ls())
+require(tinytex) #LaTeX
+require(ggplot2) #plots
+require(AER) #NW formula
+require(dplyr) #data management
+require(lubridate) #data dates management
+require(zoo) #for lagging
+require(jtools) #tables
+require(huxtable) #tables
+require(readxl) #for reading excel data
+require(R.matlab) #for loading matlab data
+require(eurostat) #eurostat data
+require(fredr) #fredr data
+require(mFilter) #HP filter
+require(knitr) #tables
+require(kableExtra) #tables extra
+require(purrr) #data?
+
+getwd()
+setwd("...") 
+
+#api for data
+fredr_set_key(Sys.getenv("FRED_API_KEY"))
+
+#dates
+start_date <- "1955-07-01"
+end_date <- "1984-01-01"
+
+
+```
+# Data
+```{r data call and merge}
+
+# Series id and the respective data name
+series_map <- list(
+  "GNPC96"             = "output",
+#   "GNP"                = "output",
+#  "CORESTICKM159SFRBATL" = "prices",
+  "GPDIC1"             = "investment",
+  "PCEND"                = "cons_nondurables", # Fetch component 1
+  "PCES"                 = "cons_services",
+  "AWHMAN"     = "hours")
+
+# Use API calls and merge data (quarterly)
+data <- map_dfr(names(series_map), function(id) {
+  fredr(series_id = id, 
+        observation_start = as.Date(start_date), 
+        observation_end = as.Date(end_date),
+        frequency = "q",
+        aggregation_method = "avg")   %>% 
+    mutate(series_name = series_map[[id]]) }) %>%
+  select(date, series_name, value) %>%    
+  tidyr::pivot_wider(                     
+    names_from = series_name, 
+    values_from = value) %>%
+  mutate(consumption = cons_nondurables + cons_services) %>% 
+  select(-cons_nondurables, -cons_services) %>%
+  mutate(productivity = output / hours)
+rm(series_map)
+
+```
+
+
+
+```{r logged and detrendng}
+
+# 1. Define a helper function to Log, Detrend, and Extract the Cycle
+get_cyclical_component <- function(x, freq = 1600) {
+
+    # Take the log
+    log_x <- log(x)
+    
+    # Apply HP Filter
+    hp_result <- hpfilter(log_x, freq = freq)
+    
+    # Return the cyclical component
+    return(hp_result$cycle) }
+
+
+
+
+data = na.omit(data)
+
+# 2. Apply to data
+cyclical_data <- data %>%
+  mutate(across(
+    .cols = where(is.numeric), 
+    .fns = get_cyclical_component,
+    .names = "{.col}"))
+
+```
+
+```{r stats}
+
+# Computing SD and Correlation with output
+summary_table <- map_dfr(names(cyclical_data)[names(cyclical_data) != "date"], function(col_name) {
+  
+  # Extract the specific series and the baseline output series
+  series_cycle <- cyclical_data[[col_name]]
+  output_cycle <- cyclical_data[["output"]]
+  
+  # Calculate Stats 
+  sd_val <- sd(series_cycle, na.rm = TRUE) * 100
+  cor_val <- cor(series_cycle, output_cycle, use = "complete.obs")
+  
+  tibble(
+    Series = col_name,
+    `Standard Deviation` = round(sd_val, 2),
+    `Correlation with Output` = round(cor_val, 2))})
+
+print(summary_table)
+
+```
+
+
+# Caluclate Utilitx Los
+
+```{r}
+U_bar <- -1.048 # Replace with formula
+B <- 2.86
+H_star <- 0.298
+C_star <- 0.821
+Y_star <- NA
+C <- 0.829
+
+
+calculate_utility_loss <- function(U_bar = -1.048, B = 2.86, H_star = 0.298, C_star = 0.821, Y_star = NA, C = 0.829){
+  delta_C = exp(U_bar + B*H_star) - C_star
+  
+  
+  loss_c = (delta_C/C)*100 # likely error c instead of c star
+  #loss_y = (delta_C/Y_star)*100
+  return(loss_c)
+}
+
+calculate_utility_loss()
+```
+
+
+
+
+
+

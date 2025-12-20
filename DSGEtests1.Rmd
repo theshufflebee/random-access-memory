@@ -131,25 +131,155 @@ print(summary_table)
 
 # Caluclate Utilitx Los
 
-```{r}
-U_bar <- -1.048 # Replace with formula
-B <- 2.86
-H_star <- 0.298
-C_star <- 0.821
-Y_star <- NA
-C <- 0.829
+## Load Steady State Values
+```{r load ss values}
+library(readr)
+library(stringr)
 
+# List all CSV files in the 'model' folder, all of them start in the same way so we can loop over them
+# These are from the Dynare code that uses octave to create them extracting steady state values
+files <- list.files(path = "models", 
+                    pattern = "steady_state_values_g_.*\\.csv", 
+                    full.names = TRUE)
 
-calculate_utility_loss <- function(U_bar = -1.048, B = 2.86, H_star = 0.298, C_star = 0.821, Y_star = NA, C = 0.829){
-  delta_C = exp(U_bar + B*H_star) - C_star
+# Loop through and create a separate data frame for each
+for (fl in files) {
   
+  # Extract the specific g-part (money growth) to name the data frame
+  df_name <- paste0("ss_", str_extract(fl, "g_\\d+_\\d+"))
   
-  loss_c = (delta_C/C)*100 # likely error c instead of c star
-  #loss_y = (delta_C/Y_star)*100
-  return(loss_c)
+  # Read the file and assign it to that name
+  assign(df_name, read_csv(fl, show_col_types = FALSE))
+  
+  message(paste("Created data frame:", df_name))
 }
+```
 
-calculate_utility_loss()
+
+## Build the full Dataframe
+```{r build ss dataframe}
+library(dplyr)
+library(tidyr)
+library(purrr)
+
+# 1. Get the names of all the ss_g_ data frames you just created
+ss_object_names <- ls(pattern = "^ss_g_")
+
+# 2. Combine them into one long data frame
+master_table <- ss_object_names %>%
+  map_df(~ {
+    # Get the actual data frame using its name
+    df <- get(.x)
+    # Add a column to identify which inflation rate this came from
+    df %>% mutate(source_g = .x)
+  })
+
+# 3. Pivot the table so each variable (c, h, y, etc.) is a column for easier reading and later interpretation
+consolidated_ss_table <- master_table %>%
+  pivot_wider(names_from = Variable, values_from = Value) %>%
+  
+  # Clean up the name for better sorting
+  mutate(g_val = as.numeric(gsub("_", ".", gsub("ss_g_", "", source_g)))) %>%
+  arrange(g_val)
+
+# 4. View the result
+print(consolidated_ss_table)
+```
+
+
+## Set Up Utility Loss Function
+```{r def function utility loss}
+library(dplyr)
+library(tidyr)
+
+# Define Function to calculate delta C for each money growth
+calculate_delta_C <- function(U_bar, C_star, H_star, B_val = B_val){
+  return(exp(U_bar + (B_val * H_star)) - C_star)
+}
+```
+
+
+## Calculate Utility Loss
+```{r calculate utility loss}
+B_val <- 2.86
+
+U_bar_benchmark <- log(consolidated_ss_table$c[1]) - B_val * consolidated_ss_table$h[1]
+
+# Use the above function to calculate losses for all money growth scenarios
+utility_results <- consolidated_ss_table %>%
+  mutate(
+    delta_C = calculate_delta_C(U_bar = U_bar_benchmark, 
+                                C_star = c, 
+                                H_star = h, 
+                                B_val = B_val),
+    
+    # Calculate loss as % of steady-state consumption
+    loss_c_pct = (delta_C / c) * 100,
+    
+    # Calculate loss as % of steady-state output (GNP)
+    loss_y_pct = (delta_C / y) * 100
+  ) %>%
+  mutate(across(c(loss_c_pct, loss_y_pct), ~round(.x, 3)))
+
+print(utility_results %>% select(g_val, c, h, delta_C, loss_c_pct, loss_y_pct))
+```
+
+
+## Build the Table 
+```{r build utility loss table}
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(kableExtra)
+
+# Prepare and Transpose Data
+latex_data <- utility_results %>%
+  mutate(
+    # Corrected function name to case_when
+    inflation_label = case_when(
+      g_val == 0.99  ~ "-4 Percent",
+      g_val == 1.00  ~ "0.0 Percent",
+      g_val == 1.024 ~ "10 Percent",
+      g_val == 1.19  ~ "100 Percent",
+      g_val == 1.41  ~ "400 Percent",
+      TRUE           ~ as.character(g_val)
+    )
+  ) %>%
+  # Selecting the Variables we need from the df to construct our table
+  select(
+    inflation_label,
+    `$g =$` = g_val,
+    Output = y,
+    Consumption = c,
+    Investment = x,
+    `Capital Stock` = k,
+    Hours = h,
+    `$\\Delta C/C \\times 100$` = loss_c_pct,
+    `$\\Delta C/Y \\times 100$` = loss_y_pct
+  ) %>%
+  
+  # Transpose variables to rows and inflation rates to columns
+  pivot_longer(cols = -inflation_label, names_to = "Variable", values_to = "Value") %>%
+  pivot_wider(names_from = inflation_label, values_from = Value)
+
+# Now Generate LaTeX Code
+latex_output <- kable(latex_data, 
+      format = "latex", 
+      booktabs = TRUE, 
+      escape = FALSE, # Allows LaTeX math like $\Delta$ to render
+      digits = 3,
+      align = "lccccc",
+      caption = " Welfare Costs Associated with Different Annual Growth Rates of Money") %>%
+  kable_styling(latex_options = c("hold_position")) %>%
+  add_header_above(c(" " = 1, "Annual Inflation Rate" = 5)) %>%
+  pack_rows("Steady State", 2, 6) %>%
+  pack_rows("Welfare Costs", 7, 8)
+
+# Print to console
+cat(latex_output)
+
+# Save to a .tex file
+writeLines(latex_output, "Table2_CooleyHansen_Replication.tex")
 ```
 
 

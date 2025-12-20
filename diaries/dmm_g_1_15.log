@@ -1,0 +1,150 @@
+Starting Dynare (version 6.5).
+Calling Dynare with arguments: none
+Preprocessing time: 0h00m00s.
+
+STEADY-STATE RESULTS:
+
+c           		 0.713558
+h           		 0.259068
+k           		 9.8418
+x           		 0.246045
+y           		 0.959603
+w           		 2.3706
+r           		 0.035101
+phat        		 1.40143
+z           		 1
+g           		 1.15
+k_state     		 9.8418
+log_y       		 -0.0412359
+log_c       		 -0.337492
+log_x       		 -1.40224
+log_h       		 -1.35067
+log_k_state 		 2.28664
+log_prod    		 1.30943
+log_phat    		 0.337492
+
+
+Residuals of the static equations:
+Equation number  1: 1           :       0.000000
+Equation number  2: 2           :       0.000000
+Equation number  3: 3           :       0.000000
+Equation number  4: 4           :       0.000000
+Equation number  5: w           :       0.000000
+Equation number  6: r           :       0.000000
+Equation number  7: y           :       0.000000
+Equation number  8: x           :       0.000000
+Equation number  9: 9           :       0.000000
+Equation number 10: 10          :       0.000000
+Equation number 11: k_state     :       0.000000
+Equation number 12: log_y       :       0.000000
+Equation number 13: log_c       :       0.000000
+Equation number 14: log_x       :       0.000000
+Equation number 15: log_h       :       0.000000
+Equation number 16: log_k_state :       0.000000
+Equation number 17: log_prod    :       0.000000
+Equation number 18: log_phat    :       0.000000
+
+
+
+EIGENVALUES:
+         Modulus             Real        Imaginary
+            0.48             0.48                0
+          0.9418           0.9418                0
+            0.95             0.95                0
+           1.073            1.073                0
+       1.391e+15       -1.391e+15                0
+       6.587e+16        6.587e+16                0
+             Inf              Inf                0
+             Inf              Inf                0
+
+There are 5 eigenvalue(s) larger than 1 in modulus for 5 forward-looking variable(s)
+The rank condition is verified.
+
+
+MODEL SUMMARY
+
+  Number of variables:         18
+  Number of stochastic shocks: 2
+  Number of state variables:   3
+  Number of jumpers:           5
+  Number of static variables:  11
+
+
+MATRIX OF COVARIANCE OF EXOGENOUS SHOCKS
+Variables     epsilon        xi
+epsilon      0.000052  0.000000
+xi           0.000000  0.000081
+
+POLICY AND TRANSITION FUNCTIONS
+                                   log_y           log_c           log_x     log_k_state           log_h        log_prod        log_phat
+Constant                       -0.041172       -0.337487       -1.402006        2.286638       -1.350565        1.309393        0.337487
+(correction)                    0.000064        0.000005        0.000236               0        0.000100       -0.000036       -0.000005
+k(-1)                           0.005584        0.054013       -0.134867        0.101607       -0.048429        0.054013       -0.054013
+z(-1)                           1.844648        0.446761        5.898676               0        1.397887        0.446761       -0.446761
+g(-1)                          -0.023169       -0.187315        0.452875               0       -0.036201        0.013032        0.187315
+epsilon                         1.941734        0.470274        6.209133               0        1.471460        0.470274       -0.470274
+xi                             -0.055508       -0.448777        1.085014               0       -0.086732        0.031223        0.448777
+k(-1),k(-1)                    -0.000828       -0.002438       -0.009425       -0.005162        0.001609       -0.002438        0.002438
+z(-1),k(-1)                     0.024519       -0.013792        0.901352               0        0.038311       -0.013792        0.013792
+z(-1),z(-1)                    -1.121933       -0.111100      -15.104569               0       -1.010832       -0.111100        0.111100
+g(-1),k(-1)                     0.000547       -0.000307        0.092939               0        0.000854       -0.000307        0.000307
+g(-1),z(-1)                     0.000982       -0.000552       -2.589920               0        0.001534       -0.000552        0.000552
+g(-1),g(-1)                     0.011586        0.080591       -0.340915               0        0.018103       -0.006517       -0.080591
+epsilon,epsilon                -0.221173        0.124410      -13.468400               0       -0.345583        0.124410       -0.124410
+xi,epsilon                      0.002476       -0.001393       -6.531598               0        0.003869       -0.001393        0.001393
+xi,xi                           0.008682       -0.004884       -0.826636               0        0.013566       -0.004884        0.004884
+k(-1),epsilon                   0.025810       -0.014518        0.948792               0        0.040328       -0.014518        0.014518
+k(-1),xi                        0.001309       -0.000737        0.222665               0        0.002046       -0.000737        0.000737
+z(-1),epsilon                  -0.420229        0.236379      -25.589960               0       -0.656608        0.236379       -0.236379
+z(-1),xi                        0.002352       -0.001323       -6.205018               0        0.003675       -0.001323        0.001323
+g(-1),epsilon                   0.001034       -0.000581       -2.726232               0        0.001615       -0.000581        0.000581
+g(-1),xi                        0.007248       -0.004077       -0.690061               0        0.011325       -0.004077        0.004077
+
+
+MOMENTS OF SIMULATED VARIABLES (HP filter, lambda = 1600)
+VARIABLE                 MEAN       STD. DEV.        VARIANCE        SKEWNESS        KURTOSIS
+log_y               -0.044412        0.019550        0.000382       -0.096143        0.296014
+log_c               -0.340080        0.007165        0.000051       -0.097731       -0.013550
+log_x               -1.410505        0.062789        0.003942       -0.190847        0.238398
+log_k_state          2.283102        0.005240        0.000027       -0.262578        0.047597
+log_h               -1.351217        0.014912        0.000222       -0.056274        0.216767
+log_prod             1.306804        0.005597        0.000031       -0.170281        0.176931
+log_phat             0.340080        0.007165        0.000051        0.097731       -0.013550
+
+
+CORRELATION OF SIMULATED VARIABLES (HP filter, lambda = 1600)
+VARIABLE             log_y        log_c        log_x  log_k_state        log_h     log_prod     log_phat
+log_y               1.0000       0.7274       0.9728       0.0669       0.9832       0.8734      -0.7274
+log_c               0.7274       1.0000       0.5537       0.4529       0.6572       0.7895      -1.0000
+log_x               0.9728       0.5537       1.0000      -0.0707       0.9763       0.7968      -0.5537
+log_k_state         0.0669       0.4529      -0.0707       1.0000      -0.1145       0.5385      -0.4529
+log_h               0.9832       0.6572       0.9763      -0.1145       1.0000       0.7697      -0.6572
+log_prod            0.8734       0.7895       0.7968       0.5385       0.7697       1.0000      -0.7895
+log_phat           -0.7274      -1.0000      -0.5537      -0.4529      -0.6572      -0.7895       1.0000
+
+
+AUTOCORRELATION OF SIMULATED VARIABLES (HP filter, lambda = 1600)
+VARIABLE             1        2        3        4        5
+log_y           0.7207   0.4799   0.2864   0.1130  -0.0287
+log_c           0.6627   0.4257   0.2703   0.1125  -0.0159
+log_x           0.6987   0.4561   0.2671   0.1049  -0.0268
+log_k_state     0.9534   0.8447   0.6956   0.5230   0.3419
+log_h           0.7091   0.4625   0.2683   0.0943  -0.0462
+log_prod        0.8172   0.6307   0.4542   0.2830   0.1268
+log_phat        0.6627   0.4257   0.2703   0.1125  -0.0159
+
+
+
+VARIANCE DECOMPOSITION SIMULATING ONE SHOCK AT A TIME (in percent) (HP filter, lambda = 1600)
+                        epsilon                xi  Tot. lin. contr.
+log_y                     99.78              0.07             99.84
+log_c                     60.80             33.71             94.51
+log_x                     99.35              2.58            101.93
+log_k_state               99.18              0.91            100.09
+log_h                     99.66              0.29             99.94
+log_prod                  99.63              0.42            100.04
+log_phat                  60.80             33.71             94.51
+Note: numbers do not add up to 100 due to i) non-zero correlation of simulated shocks in small samples and ii) nonlinearity
+
+Total computing time : 0h00m24s
+Note: warning(s) encountered in MATLAB/Octave code

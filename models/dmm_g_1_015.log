@@ -1,6 +1,6 @@
 Starting Dynare (version 6.5).
 Calling Dynare with arguments: none
-Preprocessing time: 0h00m01s.
+Preprocessing time: 0h00m00s.
 
 STEADY-STATE RESULTS:
 
@@ -146,5 +146,5 @@ log_prod                  99.63              0.42            100.04
 log_phat                  60.80             33.71             94.51
 Note: numbers do not add up to 100 due to i) non-zero correlation of simulated shocks in small samples and ii) nonlinearity
 
-Total computing time : 0h00m30s
+Total computing time : 0h00m24s
 Note: warning(s) encountered in MATLAB/Octave code

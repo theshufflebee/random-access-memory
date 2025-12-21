@@ -147,5 +147,5 @@ log_phat                 100.11              0.00            100.11
 Note: numbers do not add up to 100 due to i) non-zero correlation of simulated shocks in small samples and ii) nonlinearity
 
 SUCCESS: Steady-state values exported to steady_state_values.csv
-Total computing time : 0h00m13s
+Total computing time : 0h00m12s
 Note: warning(s) encountered in MATLAB/Octave code

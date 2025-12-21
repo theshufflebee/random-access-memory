@@ -8,10 +8,8 @@ output:
 header-includes:
   - \usepackage{amsmath}
 ---
+
 \newpage
-
-
-
 
 ```{r library_setup, results=FALSE, warning=FALSE, message=FALSE, echo=FALSE}
 rm(list=ls())
@@ -31,6 +29,9 @@ require(mFilter) #HP filter
 require(knitr) #tables
 require(kableExtra) #tables extra
 require(purrr) #data?
+require(readr)
+require(stringr)
+require(tidyr)
 
 getwd()
 setwd("...") 
@@ -44,8 +45,9 @@ end_date <- "1984-01-01"
 
 
 ```
+
 # Data
-```{r data call and merge}
+```{r data call and merge, warning=FALSE, message=FALSE}
 
 # Series id and the respective data name
 series_map <- list(
@@ -77,8 +79,7 @@ rm(series_map)
 ```
  
 
-
-```{r logged and detrendng}
+```{r log and detrending, warning=FALSE, message=FALSE}
 
 # 1. Define a helper function to Log, Detrend, and Extract the Cycle
 get_cyclical_component <- function(x, freq = 1600) {
@@ -106,7 +107,7 @@ cyclical_data <- data %>%
 
 ```
 
-```{r stats}
+```{r stats, warning=FALSE, message=FALSE}
 
 # Computing SD and Correlation with output
 summary_table <- map_dfr(names(cyclical_data)[names(cyclical_data) != "date"], function(col_name) {
@@ -142,12 +143,12 @@ print(summary_table)
 
 ```
 
+
 # Recreate Table 1
 
 ## load mat file
+```{r function to load results mat file, warning=FALSE, message=FALSE}
 
-
-```{r}
 extract_business_cycle_moments <- function(mat_results) {
   # 1. Access 'oo' structure
   oo <- mat_results$oo[,,1]
@@ -179,34 +180,28 @@ extract_business_cycle_moments <- function(mat_results) {
   
   return(df)
 }
+
 ```
 
-```{r}
+```{r load results mat file, warning=FALSE, message=FALSE}
 
-# --- Usage ---
 results_constant_growth <- readMat("models/dmm_g_constant/Output/dmm_g_constant_results.mat")
 results_015_growth <- readMat("models/dmm_g_1_015/Output/dmm_g_1_015_results.mat")
 results_15_growth <- readMat("models/dmm_g_1_15/Output/dmm_g_1_15_results.mat")
-
 
 table_output_corr_constant <- extract_business_cycle_moments(results_constant_growth)
 table_output_corr_015 <- extract_business_cycle_moments(results_015_growth)
 table_output_corr_15 <- extract_business_cycle_moments(results_15_growth)
 
-
-
-```
-
-```{r}
 print(table_output_corr_15) # For this it may be 1-0.72738 ? that would be exactly what there should be
+
 ```
 
 
 
-```{r}
-library(dplyr)
-library(knitr)
-library(kableExtra)
+
+
+```{r make tabel 1}
 
 # 1. Rename columns in your summary table to match the simulation columns for the join
 # This prevents NAs and ensures "Standard Deviation" aligns with "Standard Deviation"
@@ -261,10 +256,7 @@ final_table_1 %>%
 ```
 
 
-```{r}
-library(dplyr)
-library(knitr)
-library(kableExtra)
+```{r make table}
 
 # 1. Clean the dataframe for display
 table_for_latex <- final_table_1 %>%
@@ -317,17 +309,10 @@ cat("\n\\end{table}")
 
 
 
-
-
-
-
-
-# Caluclate Utilitx Los
+# Caluclate Utility Loss
 
 ## Load Steady State Values
 ```{r load ss values}
-library(readr)
-library(stringr)
 
 # List all CSV files in the 'model' folder, all of them start in the same way so we can loop over them
 # These are from the Dynare code that uses octave to create them extracting steady state values
@@ -346,14 +331,12 @@ for (fl in files) {
   
   message(paste("Created data frame:", df_name))
 }
+
 ```
 
 
 ## Build the full Dataframe
 ```{r build ss dataframe}
-library(dplyr)
-library(tidyr)
-library(purrr)
 
 # 1. Get the names of all the ss_g_ data frames you just created
 ss_object_names <- ls(pattern = "^ss_g_")
@@ -377,13 +360,12 @@ consolidated_ss_table <- master_table %>%
 
 # 4. View the result
 print(consolidated_ss_table)
+
 ```
 
 
 ## Set Up Utility Loss Function
 ```{r def function utility loss}
-library(dplyr)
-library(tidyr)
 
 # Define Function to calculate delta C for each money growth
 calculate_delta_C <- function(U_bar, C_star, H_star, B_val = B_val){
@@ -394,6 +376,7 @@ calculate_delta_C <- function(U_bar, C_star, H_star, B_val = B_val){
 
 ## Calculate Utility Loss
 ```{r calculate utility loss}
+
 B_val <- 2.86
 
 U_bar_benchmark <- log(consolidated_ss_table$c[1]) - B_val * consolidated_ss_table$h[1]
@@ -415,15 +398,12 @@ utility_results <- consolidated_ss_table %>%
   mutate(across(c(loss_c_pct, loss_y_pct), ~round(.x, 3)))
 
 print(utility_results %>% select(g_val, c, h, delta_C, loss_c_pct, loss_y_pct))
+
 ```
 
 
 ## Build the Table 
 ```{r build utility loss table}
-library(dplyr)
-library(tidyr)
-library(knitr)
-library(kableExtra)
 
 # Prepare and Transpose Data
 latex_data <- utility_results %>%
@@ -473,6 +453,7 @@ cat(latex_output)
 
 # Save to a .tex file
 writeLines(latex_output, "Table2_CooleyHansen_Replication.tex")
+
 ```
 
 

@@ -1,0 +1,64 @@
+--------------------------------------
+- These scripts are used to extract the values into csv's for building tables
+------------------------------------------------------------------------------
+
+
+----------------
+- 1) Get SS values
+------------------
+
+% 1. Get the names and values
+names = M_.endo_names;
+values = oo_.steady_state;
+
+% 2. Define the filename
+filename = 'steady_state_results.csv';
+
+% 3. Open the file for writing
+fid = fopen(filename, 'w');
+
+% 4. Write the header
+fprintf(fid, 'Variable, Steady State Value\n');
+
+% 5. Loop through and write each variable
+for i = 1:length(names)
+    fprintf(fid, '%s, %.6f\n', names{i}, values(i));
+end
+
+% 6. Close the file and notify user
+fclose(fid);
+fprintf('\nSuccess! Steady state values saved to: %s\n', filename);
+
+
+-------------------------------------------------------------------------
+- Get the standard Deviation in percent and the correlation with output
+---------------------------------------------------------------------------
+
+% 1. Define the variables and labels in the order they were simulated
+vnames = {'log_y', 'log_c', 'log_x', 'log_k_state', 'log_h', 'log_prod', 'log_phat'};
+labels = {'Output', 'Consumption', 'Investment', 'Capital Stock', 'Hours', 'Productivity', 'Price Level'};
+
+% 2. Calculate Statistics from oo_.var
+% Manual calculation of correlation matrix to bypass metadata errors
+manual_sd = sqrt(diag(oo_.var));
+corr_matrix = oo_.var ./ (manual_sd * manual_sd');
+sd_percent = manual_sd * 100;
+
+% 3. Identify log_y as the benchmark (index 1)
+y_idx = 1;
+
+% 4. Save to CSV
+filename = 'business_cycle_moments.csv';
+fid = fopen(filename, 'w');
+
+% Header
+fprintf(fid, 'Series, Std Dev (percent), Correlation with Output\n');
+
+% Data Rows
+for i = 1:length(vnames)
+    fprintf(fid, '%s, %.4f, %.4f\n', ...
+            labels{i}, sd_percent(i), corr_matrix(i, y_idx));
+end
+
+fclose(fid);
+fprintf('\nSuccess! Correlation data saved to: %s\n', filename);

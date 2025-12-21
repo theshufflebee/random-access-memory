@@ -75,7 +75,7 @@ data <- map_dfr(names(series_map), function(id) {
 rm(series_map)
 
 ```
-
+ 
 
 
 ```{r logged and detrendng}
@@ -120,13 +120,206 @@ summary_table <- map_dfr(names(cyclical_data)[names(cyclical_data) != "date"], f
   cor_val <- cor(series_cycle, output_cycle, use = "complete.obs")
   
   tibble(
-    Series = col_name,
+    Variable = col_name,
     `Standard Deviation` = round(sd_val, 2),
     `Correlation with Output` = round(cor_val, 2))})
 
+
+summary_table <- summary_table %>%
+  mutate(Variable = case_when(
+    Variable == "output"         ~ "Output",
+    Variable == "consumption"    ~ "Consumption",
+    Variable == "investment"     ~ "Investment",
+    Variable == "hours"          ~ "Hours",
+    Variable == "productivity"   ~ "Productivity",
+    # Add this if you have it in your data
+    Variable == "capital stock"  ~ "Capital Stock",
+    TRUE ~ Variable  # Keeps the name as is if no match found
+  ))
+
 print(summary_table)
 
+
 ```
+
+# Recreate Table 1
+
+## load mat file
+
+
+```{r}
+extract_business_cycle_moments <- function(mat_results) {
+  # 1. Access 'oo' structure
+  oo <- mat_results$oo[,,1]
+  
+  # 2. Extract Variance-Covariance Matrix (oo_.var)
+  cov_matrix <- oo$var
+  if(is.list(cov_matrix)) cov_matrix <- cov_matrix[[1]]
+  
+  # 3. Define the variable names
+  var_names <- c("Output", "Consumption", "Investment", "Capital", "Hours", "Productivity", "Price Level")
+  cov_subset <- cov_matrix[1:7, 1:7]
+  
+  # 4. Calculate Standard Deviations (Square root of the diagonal)
+  # Position [i,i] contains the variance
+  variances <- sapply(1:7, function(i) cov_subset[i, i])
+  st_deviations <- sqrt(variances)
+  
+  # 5. Calculate Correlations with Output (log_y)
+  corr_matrix <- cov2cor(cov_subset)
+  corr_with_y <- corr_matrix[, 1]
+  
+  # 6. Build the Final Replication Table
+  df <- data.frame(
+    Variable = var_names,
+    `Standard Deviation` = st_deviations * 100,
+    check.names = FALSE, # Often expressed as % in papers
+    `Correlation with Output` = corr_with_y
+  )
+  
+  return(df)
+}
+```
+
+```{r}
+
+# --- Usage ---
+results_constant_growth <- readMat("models/dmm_g_constant/Output/dmm_g_constant_results.mat")
+results_015_growth <- readMat("models/dmm_g_1_015/Output/dmm_g_1_015_results.mat")
+results_15_growth <- readMat("models/dmm_g_1_15/Output/dmm_g_1_15_results.mat")
+
+
+table_output_corr_constant <- extract_business_cycle_moments(results_constant_growth)
+table_output_corr_015 <- extract_business_cycle_moments(results_015_growth)
+table_output_corr_15 <- extract_business_cycle_moments(results_15_growth)
+
+
+
+```
+
+```{r}
+print(table_output_corr_15) # For this it may be 1-0.72738 ? that would be exactly what there should be
+```
+
+
+
+```{r}
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+# 1. Rename columns in your summary table to match the simulation columns for the join
+# This prevents NAs and ensures "Standard Deviation" aligns with "Standard Deviation"
+summary_fixed <- summary_table %>%
+  rename(SD_US = `Standard Deviation`, 
+         Corr_US = `Correlation with Output`)
+
+# 2. Merge all tables using the 'Variable' column
+# We rename simulation columns during the join to keep them unique
+final_table_1 <- table_output_corr_constant %>%
+  rename(SD_Const = `Standard Deviation`, 
+         Corr_Const = `Correlation with Output`) %>%
+  left_join(summary_fixed, by = "Variable") %>%
+  left_join(table_output_corr_015 %>% select(Variable, `Standard Deviation`, `Correlation with Output`), by = "Variable") %>%
+  rename(SD_015 = `Standard Deviation`, 
+         Corr_015 = `Correlation with Output`) %>%
+  left_join(table_output_corr_15 %>% select(Variable, `Standard Deviation`, `Correlation with Output`), by = "Variable") %>%
+  rename(SD_115 = `Standard Deviation`, 
+         Corr_115 = `Correlation with Output`)
+
+# 3. Reorder rows to match the Cooley-Hansen Paper exactly
+# Ensure "Capital Stock" matches the simulation's "Capital" if necessary
+final_table_1 <- final_table_1 %>%
+  mutate(Variable = case_when(
+    Variable == "Capital" ~ "Capital Stock",
+    TRUE ~ Variable
+  ))
+
+row_order <- c("Output", "Consumption", "Investment", "Capital Stock", "Hours", "Productivity", "Price Level")
+
+final_table_1 <- final_table_1 %>%
+  mutate(Variable = factor(Variable, levels = row_order)) %>%
+  arrange(Variable)
+
+# 4. Generate the LaTeX Output with Grouped Headers and Exact Lines
+final_table_1 %>%
+  select(Variable, SD_US, Corr_US, SD_Const, Corr_Const, SD_015, Corr_015, SD_115, Corr_115) %>%
+  mutate(across(where(is.numeric), ~sprintf("%.2f", .x))) %>%
+  mutate(across(everything(), ~gsub("NA", "", .x))) %>% 
+  kable(format = "latex", booktabs = TRUE, align = "lcccccccc",
+        col.names = c("Series", 
+                      "Standard Deviation", "Correlation with Output", 
+                      "Standard Deviation", "Correlation with Output", 
+                      "Standard Deviation", "Correlation with Output", 
+                      "Standard Deviation", "Correlation with Output"),
+        caption = "Table 1—Standard Deviations in Percent and Correlations with Output") %>%
+  add_header_above(c(" " = 1, 
+                     "Quarterly U.S. Time Series" = 2, 
+                     "Economy with Constant Growth Rate" = 2, 
+                     "Economy with AR Growth (g=1.015)" = 2, 
+                     "Economy with AR Growth (g=1.15)" = 2))
+```
+
+
+```{r}
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+# 1. Clean the dataframe for display
+table_for_latex <- final_table_1 %>%
+  mutate(across(where(is.numeric), ~sprintf("%.2f", .x))) %>%
+  mutate(across(everything(), ~gsub("NA", "", .x)))
+
+# Standard column names without line breaks
+col_labels <- c("Series", 
+                "Stan. Dev.", "Corr w/ Output", 
+                "Stan. Dev.", "Corr w/ Output")
+
+# 2. Top Row: U.S. and Constant Growth
+row1_latex <- table_for_latex %>%
+  select(Variable, SD_US, Corr_US, SD_Const, Corr_Const) %>%
+  kable(
+    format = "latex", 
+    booktabs = TRUE,
+    align = "lcccc",
+    col.names = col_labels
+  ) %>%
+  add_header_above(c(
+    " " = 1, 
+    "Quarterly U.S. Time Series" = 2, 
+    "Constant Growth Rate" = 2
+  ))
+
+# 3. Bottom Row: AR Models
+row2_latex <- table_for_latex %>%
+  select(Variable, SD_015, Corr_015, SD_115, Corr_115) %>%
+  kable(
+    format = "latex", 
+    booktabs = TRUE,
+    align = "lcccc",
+    col.names = col_labels
+  ) %>%
+  add_header_above(c(
+    " " = 1, 
+    "AR Growth (g=1.015)" = 2, 
+    "AR Growth (g=1.15)" = 2
+  ))
+
+# 4. Print the combined code to console
+cat("\\begin{table}[ht]\n\\centering\n\\caption{Table 1—Standard Deviations and Correlations with Output}\n")
+cat(as.character(row1_latex))
+cat("\n\\vspace{0.8cm}\n\n") # Vertical gap between the two stacked tables
+cat(as.character(row2_latex))
+cat("\n\\end{table}")
+```
+
+
+
+
+
+
+
 
 
 # Caluclate Utilitx Los

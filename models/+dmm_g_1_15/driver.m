@@ -559,6 +559,7 @@ oo_.dr.eigval = check(M_,options_,oo_);
 M_.exo_det_length = 0;
 M_.Sigma_e(1, 1) = 5.19841e-05;
 M_.Sigma_e(2, 2) = 8.099999999999999e-05;
+options_.graph_format = {'pdf'};
 options_.hp_filter = 1600;
 options_.irf = 115;
 options_.nodisplay = true;

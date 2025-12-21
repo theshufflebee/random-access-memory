@@ -108,7 +108,7 @@ end;
 // Computation
 //***********************************************************
 
-stoch_simul(irf=115, order=2, periods=1000, hp_filter=1600, graph_format = (pdf), nodisplay) log_y log_c log_x log_k_state log_h log_prod log_phat;
+stoch_simul(irf=115, order=2, periods=1000, hp_filter=1600, graph_format = (pdf, eps), nodisplay) log_y log_c log_x log_k_state log_h log_prod log_phat z;
 
 simulated_values = oo_.endo_simul;
 

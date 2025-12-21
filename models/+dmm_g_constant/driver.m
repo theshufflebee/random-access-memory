@@ -559,13 +559,13 @@ oo_.dr.eigval = check(M_,options_,oo_);
 M_.exo_det_length = 0;
 M_.Sigma_e(1, 1) = 5.19841e-05;
 M_.Sigma_e(2, 2) = 0.0;
-options_.graph_format = {'pdf'};
+options_.graph_format = {'pdf';'eps'};
 options_.hp_filter = 1600;
 options_.irf = 115;
 options_.nodisplay = true;
 options_.order = 2;
 options_.periods = 1000;
-var_list_ = {'log_y';'log_c';'log_x';'log_k_state';'log_h';'log_prod';'log_phat'};
+var_list_ = {'log_y';'log_c';'log_x';'log_k_state';'log_h';'log_prod';'log_phat';'z'};
 [info, oo_, options_, M_] = stoch_simul(M_, options_, oo_, var_list_);
 simulated_values = oo_.endo_simul;
     % 1. Extract variable names and their steady state values

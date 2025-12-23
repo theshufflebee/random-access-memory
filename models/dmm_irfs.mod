@@ -3,6 +3,9 @@
 
 graphics_toolkit("gnuplot");
 
+// This MOD file only computes the IRFs, as we use different variables 
+//  from the ones we want to show in the replicated tables.
+
 // Preamble
 //***********************************************************
 
@@ -130,35 +133,7 @@ end;
 // We provide shocks on a duration of 115, but with periods=1000 otherwise we do not
 //  obtain values close to the original paper. We include the HP filter to detrend 
 //  the variables. We look at the effect of shocks on the key variables of Table 1.
-stoch_simul(irf=115, order=2, periods=1000, hp_filter=1600, graph_format = (pdf, eps), nodisplay) log_y log_c log_x log_k_state log_h log_prod log_p_hat z g;
-
-simulated_values = oo_.endo_simul;
-
-// we export steady state values directly to a CSV file via verbatim commands
-// Adjust the name of the file as needed, especially for different g_bar values
-
-verbatim;
-    % Extract variable names and their steady state values
-    names_ss = M_.endo_names;
-    values_ss = oo_.steady_state;
-
-    % Create and open the CSV file
-    fid = fopen('steady_state_values_g_1_024.csv', 'w');
-    
-    % Write the header / variale names
-    fprintf(fid, 'Variable,Value\n');
-
-    %Loop through variables and write each row
-    for i = 1:length(names_ss)
-        fprintf(fid, '%s,%.10f\n', names_ss{i}, values_ss(i));
-    end
-
-    % Close the file and print confirmation to the command window
-    fclose(fid);
-    disp('SUCCESS: Steady-state values exported to csv');
-end;
+stoch_simul(irf=115, order=2, periods=1000, hp_filter=1600, graph_format = (pdf, eps), nodisplay) log_y log_c log_x log_h w log_k_state r log_p_hat z g;
 
 
-
-// simulated_steady_state_values = oo_.steady_state; 
 

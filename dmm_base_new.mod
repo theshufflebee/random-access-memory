@@ -77,15 +77,14 @@ end;
 
 // Steady State
 //***********************************************************
+
 // Give an initial value to compute the SS: 
-// Notation: VARIABLE_NAME = EXPRESSION
-// LHS always ONLY has one variable!!!
-// Need to give an initial value/expression for every variable
-// Note: Must be in order! 
 
 initval;
 
-    // Base model as derived
+    // Base model as derived in section 2.3.2, but in a different
+    //  order based on Dynare requirements. 
+
     g = g_bar;
     z = 1;
     r = 1 / beta - (1-delta);
@@ -128,6 +127,9 @@ end;
 // Computation
 //***********************************************************
 
+// We provide shocks on a duration of 115, but with periods=1000 otherwise we do not
+//  obtain values close to the original paper. We include the HP filter to detrend 
+//  the variables. We look at the effect of shocks on the key variables of Table 1.
 stoch_simul(irf=115, order=2, periods=1000, hp_filter=1600, graph_format = (pdf, eps), nodisplay) log_y log_c log_x log_k_state log_h log_prod log_p_hat z g;
 
 simulated_values = oo_.endo_simul;

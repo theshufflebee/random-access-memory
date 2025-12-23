@@ -34,7 +34,7 @@ graphics_toolkit("gnuplot");
     B = 2.86;
     gamma = 0.95;
     alpha = 0.48;
-    g_bar = 1.00;
+    g_bar = 1.015;
 
 
 // Model
@@ -56,7 +56,7 @@ model;
     y = z*(k(-1))^theta * h^(1-theta);                        // Production
     x = y - c;                                                // Market Clearing
     log(z) = gamma * log(z(-1)) + epsilon;                    // Technology
-    log(g) = alpha*log(g(-1)) + xi;                           // Money Growth
+    log(g) = alpha*log(g(-1)) + (1-alpha)*log(g_bar) + xi;     // Money Growth
 
 
     // As described earlier, to match the original paper's 

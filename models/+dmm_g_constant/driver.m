@@ -568,21 +568,21 @@ options_.periods = 1000;
 var_list_ = {'log_y';'log_c';'log_x';'log_k_state';'log_h';'log_prod';'log_phat';'z'};
 [info, oo_, options_, M_] = stoch_simul(M_, options_, oo_, var_list_);
 simulated_values = oo_.endo_simul;
-    % 1. Extract variable names and their steady state values
-    names_ss = M_.endo_names;
-    values_ss = oo_.steady_state;
-    % 2. Create and open the CSV file
-    fid = fopen('steady_state_values_g_constant.csv', 'w');
-    
-    % 3. Write the header
-    fprintf(fid, 'Variable,Value\n');
-    % 4. Loop through variables and write each row
-    for i = 1:length(names_ss)
-        fprintf(fid, '%s,%.10f\n', names_ss{i}, values_ss(i));
-    end
-    % 5. Close the file and print confirmation to the command window
-    fclose(fid);
-    disp('SUCCESS: Steady-state values exported to steady_state_values.csv');
+idx_g     = strmatch('g', M_.endo_names, 'exact');
+idx_phat  = strmatch('log_phat', M_.endo_names, 'exact');
+idx_y     = strmatch('log_y', M_.endo_names, 'exact');
+sim_g     = oo_.endo_simul(idx_g, :);       
+sim_phat  = oo_.endo_simul(idx_phat, :);    
+sim_y     = oo_.endo_simul(idx_y, :);       
+sim_log_M = cumsum(log(sim_g));
+sim_log_P = sim_phat + sim_log_M;
+[trend_P, cycle_P] = sample_hp_filter(sim_log_P', 1600);
+[trend_Y, cycle_Y] = sample_hp_filter(sim_y', 1600);
+corr_P_Y = corr(cycle_P, cycle_Y);
+fprintf('\n----------------------------------------------------\n');
+fprintf('CALCULATED MOMENTS FOR NOMINAL VARIABLES\n');
+fprintf('Correlation(Output, Nominal Price Level): %8.4f\n', corr_P_Y);
+fprintf('----------------------------------------------------\n');
 
 
 oo_.time = toc(tic0);

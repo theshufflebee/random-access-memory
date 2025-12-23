@@ -115,26 +115,41 @@ simulated_values = oo_.endo_simul;
 // Final part of the .mod file
 // -------------------------------------------------------------------------
 
-verbatim;
-    % 1. Extract variable names and their steady state values
-    names_ss = M_.endo_names;
-    values_ss = oo_.steady_state;
+//**************************************************************
+// Calculation of the Price Level and its Correlation with Output
+// Manually done as p_hat isn't the price level reported in the Paper
 
-    % 2. Create and open the CSV file
-    fid = fopen('steady_state_values_g_constant.csv', 'w');
-    
-    % 3. Write the header
-    fprintf(fid, 'Variable,Value\n');
+// Get the indices of the variables we need from the simulation results
+idx_g     = strmatch('g', M_.endo_names, 'exact');
+idx_phat  = strmatch('log_phat', M_.endo_names, 'exact');
+idx_y     = strmatch('log_y', M_.endo_names, 'exact');
 
-    % 4. Loop through variables and write each row
-    for i = 1:length(names_ss)
-        fprintf(fid, '%s,%.10f\n', names_ss{i}, values_ss(i));
-    end
+// Extract the simulated data (1 x T vectors)
+sim_g     = oo_.endo_simul(idx_g, :);       // Gross money growth (g)
+sim_phat  = oo_.endo_simul(idx_phat, :);    // log(phat)
+sim_y     = oo_.endo_simul(idx_y, :);       // log(output)
 
-    % 5. Close the file and print confirmation to the command window
-    fclose(fid);
-    disp('SUCCESS: Steady-state values exported to steady_state_values.csv');
-end;
+// Construct Nominal Money Stock (log M)
+//    Rule: log(M_t) = log(M_{t-1}) + log(g_t)
+//    We use cumulative sum of log(g) to create the random walk component
+sim_log_M = cumsum(log(sim_g));
+
+// Construct Nominal Price Level (log P)
+//    Rule: P = phat * M  --> log(P) = log(phat) + log(M)
+sim_log_P = sim_phat + sim_log_M;
+
+// Detrend the newly created non-stationary Price Level
+//    We use Dynare's 'sample_hp_filter' with lambda = 1600
+[trend_P, cycle_P] = sample_hp_filter(sim_log_P', 1600);
+[trend_Y, cycle_Y] = sample_hp_filter(sim_y', 1600);
+
+// Calculate and Display the Correlation
+corr_P_Y = corr(cycle_P, cycle_Y);
+
+fprintf('\n----------------------------------------------------\n');
+fprintf('CALCULATED MOMENTS FOR NOMINAL VARIABLES\n');
+fprintf('Correlation(Output, Nominal Price Level): %8.4f\n', corr_P_Y);
+fprintf('----------------------------------------------------\n');
 
 // simulated_steady_state_values = oo_.steady_state; 
 

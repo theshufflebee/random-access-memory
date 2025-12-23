@@ -12,7 +12,7 @@ graphics_toolkit("gnuplot");
     var c h k x y w r phat z g;
     var k_state log_y log_c log_x log_h log_k_state log_prod log_phat; 
     varexo epsilon xi;
-    parameters gamma alpha theta B delta beta ghat;
+    parameters gamma alpha theta B delta beta g_bar;
 
 
 // Parameterisation
@@ -23,7 +23,7 @@ graphics_toolkit("gnuplot");
     B = 2.86;
     gamma = 0.95;
     alpha = 0.48;
-    ghat = 1.15;
+    g_bar = 1.15;
 
 // Model
 //***********************************************************
@@ -40,7 +40,7 @@ model;
     y = z*(k(-1))^theta * h^(1-theta);
     x = y - c;
     log(z) = gamma * log(z(-1)) + epsilon;
-    log(g) = alpha*log(g(-1)) + (1-alpha)*log(ghat) + xi;
+    log(g) = alpha*log(g(-1)) + (1-alpha)*log(g_bar) + xi;
 
     // To match paper 
     k_state = k(-1);          
@@ -66,7 +66,7 @@ end;
 initval;
 
     // Base model as derived
-    g = ghat;
+    g = g_bar;
     z = 1;
     r = 1 / beta - (1-delta);
     w = (1-theta) * (r / theta)^(theta / (theta-1));
@@ -111,6 +111,43 @@ end;
 stoch_simul(irf=115, order=2, periods=1000, hp_filter=1600, graph_format = (pdf, eps), nodisplay) log_y log_c log_x log_k_state log_h log_prod log_phat z g;
 
 simulated_values = oo_.endo_simul;
+
+//**************************************************************
+// Calculation of the Price Level and its Correlation with Output
+// Manually done as p_hat isn't the price level reported in the Paper
+
+// Get the indices of the variables we need from the simulation results
+idx_g     = strmatch('g', M_.endo_names, 'exact');
+idx_phat  = strmatch('log_phat', M_.endo_names, 'exact');
+idx_y     = strmatch('log_y', M_.endo_names, 'exact');
+
+// Extract the simulated data (1 x T vectors)
+sim_g     = oo_.endo_simul(idx_g, :);       // Gross money growth (g)
+sim_phat  = oo_.endo_simul(idx_phat, :);    // log(phat)
+sim_y     = oo_.endo_simul(idx_y, :);       // log(output)
+
+// Construct Nominal Money Stock (log M)
+//    Rule: log(M_t) = log(M_{t-1}) + log(g_t)
+//    We use cumulative sum of log(g) to create the random walk component
+sim_log_M = cumsum(log(sim_g));
+
+// Construct Nominal Price Level (log P)
+//    Rule: P = phat * M  --> log(P) = log(phat) + log(M)
+sim_log_P = sim_phat + sim_log_M;
+
+// Detrend the newly created non-stationary Price Level
+//    We use Dynare's 'sample_hp_filter' with lambda = 1600
+[trend_P, cycle_P] = sample_hp_filter(sim_log_P', 1600);
+[trend_Y, cycle_Y] = sample_hp_filter(sim_y', 1600);
+
+// Calculate and Display the Correlation
+corr_P_Y = corr(cycle_P, cycle_Y);
+
+fprintf('\n----------------------------------------------------\n');
+fprintf('CALCULATED MOMENTS FOR NOMINAL VARIABLES\n');
+fprintf('Correlation(Output, Nominal Price Level): %8.4f\n', corr_P_Y);
+fprintf('----------------------------------------------------\n');
+
 // simulated_steady_state_values = oo_.steady_state; 
 
 // Note: Add pruning as an option?? And Tex

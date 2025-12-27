@@ -1,0 +1,713 @@
+---
+title: "DSGE Replication Tests"
+output:
+  pdf_document: 
+    toc: true
+    fig_caption: yes
+    latex_engine: lualatex
+header-includes:
+  - \usepackage{amsmath}
+---
+
+\newpage
+
+```{r library_setup, results=FALSE, warning=FALSE, message=FALSE, echo=FALSE}
+rm(list=ls())
+require(tinytex) #LaTeX
+require(ggplot2) #plots
+require(AER) #NW formula
+require(dplyr) #data management
+require(lubridate) #data dates management
+require(zoo) #for lagging
+require(jtools) #tables
+require(huxtable) #tables
+require(readxl) #for reading excel data
+require(R.matlab) #for loading matlab data
+require(eurostat) #eurostat data
+require(fredr) #fredr data
+require(mFilter) #HP filter
+require(knitr) #tables
+require(kableExtra) #tables extra
+require(purrr) #data?
+require(readr)
+require(stringr)
+require(tidyr)
+library(mFilter)
+
+
+getwd()
+setwd("...") 
+
+#api for data
+fredr_set_key(Sys.getenv("FRED_API_KEY"))
+
+#dates
+start_date <- "1955-07-01"
+end_date <- "1984-01-01"
+
+
+```
+
+# Data
+```{r data call and merge, warning=FALSE, message=FALSE}
+
+# Series id and the respective data name
+series_map <- list(
+  "GNPC96"             = "output",
+#   "GNP"                = "output",
+#  "CORESTICKM159SFRBATL" = "prices",
+  "GPDIC1"             = "investment",
+  "PCEND"                = "cons_nondurables", # Fetch component 1
+  "PCES"                 = "cons_services",
+  "AWHMAN"     = "hours")
+
+# Use API calls and merge data (quarterly)
+data <- map_dfr(names(series_map), function(id) {
+  fredr(series_id = id, 
+        observation_start = as.Date(start_date), 
+        observation_end = as.Date(end_date),
+        frequency = "q",
+        aggregation_method = "avg")   %>% 
+    mutate(series_name = series_map[[id]]) }) %>%
+  select(date, series_name, value) %>%    
+  tidyr::pivot_wider(                     
+    names_from = series_name, 
+    values_from = value) %>%
+  mutate(consumption = cons_nondurables + cons_services) %>% 
+  select(-cons_nondurables, -cons_services) %>%
+  mutate(productivity = output / hours)
+rm(series_map)
+
+```
+ 
+
+```{r log and detrending, warning=FALSE, message=FALSE}
+
+# 1. Define a helper function to Log, detrend, and extract the cycle
+get_cyclical_component <- function(x, freq = 1600) {
+
+    # Take the log
+    log_x <- log(x)
+    
+    # Apply HP Filter
+    hp_result <- hpfilter(log_x, freq = freq)
+    
+    # Return the cyclical component
+    return(hp_result$cycle) }
+
+data = na.omit(data)
+
+# 2. Apply to data
+cyclical_data <- data %>%
+  mutate(across(
+    .cols = where(is.numeric), 
+    .fns = get_cyclical_component,
+    .names = "{.col}"))
+
+```
+
+```{r stats, warning=FALSE, message=FALSE}
+
+# Computing SD and Correlation with output
+summary_table <- map_dfr(names(cyclical_data)[names(cyclical_data) != "date"], function(col_name) {
+  
+  # Extract the specific series and the baseline output series
+  series_cycle <- cyclical_data[[col_name]]
+  output_cycle <- cyclical_data[["output"]]
+  
+  # Calculate Stats 
+  sd_val <- sd(series_cycle, na.rm = TRUE) * 100
+  cor_val <- cor(series_cycle, output_cycle, use = "complete.obs")
+  
+  tibble(
+    Variable = col_name,
+    `Standard Deviation` = round(sd_val, 2),
+    `Correlation with Output` = round(cor_val, 2))})
+
+summary_table <- summary_table %>%
+  mutate(Variable = case_when(
+    Variable == "output"         ~ "Output",
+    Variable == "consumption"    ~ "Consumption",
+    Variable == "investment"     ~ "Investment",
+    Variable == "hours"          ~ "Hours",
+    Variable == "productivity"   ~ "Productivity",
+    # Add this if you have it in your data
+    Variable == "capital stock"  ~ "Capital Stock",
+    TRUE ~ Variable  # Keeps the name as is if no match found
+  ))
+
+print(summary_table)
+
+```
+
+
+# Recreate Table 1
+
+## load mat file
+```{r function to load results mat file, warning=FALSE, message=FALSE}
+
+extract_business_cycle_moments <- function(mat_results) {
+  # 1. Access 'oo' structure
+  oo <- mat_results$oo[,,1]
+  
+  # 2. Extract Variance-Covariance Matrix (oo_.var)
+  cov_matrix <- oo$var
+  if(is.list(cov_matrix)) cov_matrix <- cov_matrix[[1]]
+  
+  # 3. Define the variable names
+  var_names <- c("Output", "Consumption", "Investment", "Capital", "Hours", "Productivity", "Price Level")
+  cov_subset <- cov_matrix[1:7, 1:7]
+  
+  # 4. Calculate Standard Deviations (Square root of the diagonal)
+  # Position [i,i] contains the variance
+  variances <- sapply(1:7, function(i) cov_subset[i, i])
+  st_deviations <- sqrt(variances)
+  
+  # 5. Calculate Correlations with Output (log_y)
+  corr_matrix <- cov2cor(cov_subset)
+  corr_with_y <- corr_matrix[, 1]
+  
+  # 6. Build the Final Replication Table
+  df <- data.frame(
+    Variable = var_names,
+    `Standard Deviation` = st_deviations * 100,
+    check.names = FALSE, # Often expressed as % in papers
+    `Correlation with Output` = corr_with_y
+  )
+  
+  return(df)
+}
+
+```
+
+```{r load results mat file, warning=FALSE, message=FALSE}
+
+results_constant_growth <- readMat("models/dmm_g_constant/Output/dmm_g_constant_results.mat")
+results_015_growth <- readMat("models/dmm_g_1_015/Output/dmm_g_1_015_results.mat")
+results_15_growth <- readMat("models/dmm_g_1_15/Output/dmm_g_1_15_results.mat")
+
+table_output_corr_constant <- extract_business_cycle_moments(results_constant_growth)
+table_output_corr_015 <- extract_business_cycle_moments(results_015_growth)
+table_output_corr_15 <- extract_business_cycle_moments(results_15_growth)
+
+print(table_output_corr_15) # For this it may be 1-0.72738 ? that would be exactly what there should be
+
+```
+
+
+
+
+
+```{r make table 1 with standard dynare method}
+
+# 1. Rename columns in your summary table to match the simulation columns for the join
+# This prevents NAs and ensures "Standard Deviation" aligns with "Standard Deviation"
+summary_fixed <- summary_table %>%
+  rename(SD_US = `Standard Deviation`, 
+         Corr_US = `Correlation with Output`)
+
+# 2. Merge all tables using the 'Variable' column
+# We rename simulation columns during the join to keep them unique
+final_table_1 <- table_output_corr_constant %>%
+  rename(SD_Const = `Standard Deviation`, 
+         Corr_Const = `Correlation with Output`) %>%
+  left_join(summary_fixed, by = "Variable") %>%
+  left_join(table_output_corr_015 %>% select(Variable, `Standard Deviation`, `Correlation with Output`), by = "Variable") %>%
+  rename(SD_015 = `Standard Deviation`, 
+         Corr_015 = `Correlation with Output`) %>%
+  left_join(table_output_corr_15 %>% select(Variable, `Standard Deviation`, `Correlation with Output`), by = "Variable") %>%
+  rename(SD_115 = `Standard Deviation`, 
+         Corr_115 = `Correlation with Output`)
+
+# 3. Reorder rows to match the Cooley-Hansen Paper exactly
+# Ensure "Capital Stock" matches the simulation's "Capital" if necessary
+final_table_1 <- final_table_1 %>%
+  mutate(Variable = case_when(
+    Variable == "Capital" ~ "Capital Stock",
+    TRUE ~ Variable
+  ))
+
+row_order <- c("Output", "Consumption", "Investment", "Capital Stock", "Hours", "Productivity", "Price Level")
+
+final_table_1 <- final_table_1 %>%
+  mutate(Variable = factor(Variable, levels = row_order)) %>%
+  arrange(Variable)
+
+# 4. Generate the LaTeX Output with Grouped Headers and Exact Lines
+final_table_1 %>%
+  select(Variable, SD_US, Corr_US, SD_Const, Corr_Const, SD_015, Corr_015, SD_115, Corr_115) %>%
+  mutate(across(where(is.numeric), ~sprintf("%.2f", .x))) %>%
+  mutate(across(everything(), ~gsub("NA", "", .x))) %>% 
+  kable(format = "latex", booktabs = TRUE, align = "lcccccccc",
+        col.names = c("Series", 
+                      "Standard Deviation", "Correlation with Output", 
+                      "Standard Deviation", "Correlation with Output", 
+                      "Standard Deviation", "Correlation with Output", 
+                      "Standard Deviation", "Correlation with Output"),
+        caption = "Table 1—Standard Deviations in Percent and Correlations with Output") %>%
+  add_header_above(c(" " = 1, 
+                     "Quarterly U.S. Time Series" = 2, 
+                     "Economy with Constant Growth Rate" = 2, 
+                     "Economy with AR Growth (g=1.015)" = 2, 
+                     "Economy with AR Growth (g=1.15)" = 2))
+
+```
+
+
+```{r make table}
+
+# 1. Clean the dataframe for display
+table_for_latex <- final_table_1 %>%
+  mutate(across(where(is.numeric), ~sprintf("%.2f", .x))) %>%
+  mutate(across(everything(), ~gsub("NA", "", .x)))
+
+# Standard column names without line breaks
+col_labels <- c("Series", 
+                "Stan. Dev.", "Corr w/ Output", 
+                "Stan. Dev.", "Corr w/ Output")
+
+# 2. Top Row: U.S. and Constant Growth
+row1_latex <- table_for_latex %>%
+  select(Variable, SD_US, Corr_US, SD_Const, Corr_Const) %>%
+  kable(
+    format = "latex", 
+    booktabs = TRUE,
+    align = "lcccc",
+    col.names = col_labels
+  ) %>%
+  add_header_above(c(
+    " " = 1, 
+    "Quarterly U.S. Time Series" = 2, 
+    "Constant Growth Rate" = 2
+  ))
+
+# 3. Bottom Row: AR Models
+row2_latex <- table_for_latex %>%
+  select(Variable, SD_015, Corr_015, SD_115, Corr_115) %>%
+  kable(
+    format = "latex", 
+    booktabs = TRUE,
+    align = "lcccc",
+    col.names = col_labels
+  ) %>%
+  add_header_above(c(
+    " " = 1, 
+    "AR Growth (g=1.015)" = 2, 
+    "AR Growth (g=1.15)" = 2
+  ))
+
+# 4. Print the combined code to console
+cat("\\begin{table}[ht]\n\\centering\n\\caption{Table 1—Standard Deviations and Correlations with Output}\n")
+cat(as.character(row1_latex))
+cat("\n\\vspace{0.8cm}\n\n") # Vertical gap between the two stacked tables
+cat(as.character(row2_latex))
+cat("\n\\end{table}")
+
+```
+
+
+# Calculate Utility Loss
+
+## Load Steady State Values
+```{r load ss values}
+
+# List all CSV files in the 'model' folder, all of them start in the same way so we can loop over them
+# These are from the Dynare code that uses octave to create them extracting steady state values
+files <- list.files(path = "models", 
+                    pattern = "steady_state_values_g_.*\\.csv", 
+                    full.names = TRUE)
+
+# Loop through and create a separate data frame for each
+for (fl in files) {
+  
+  # Extract the specific g-part (money growth) to name the data frame
+  df_name <- paste0("ss_", str_extract(fl, "g_\\d+_\\d+"))
+  
+  # Read the file and assign it to that name
+  assign(df_name, read_csv(fl, show_col_types = FALSE))
+  
+  message(paste("Created data frame:", df_name))
+}
+
+```
+
+
+## Build the full Dataframe
+```{r build ss dataframe}
+
+# 1. Get the names of all the ss_g_ data frames you just created
+ss_object_names <- ls(pattern = "^ss_g_")
+
+# 2. Combine them into one long data frame
+master_table <- ss_object_names %>%
+  map_df(~ {
+    # Get the actual data frame using its name
+    df <- get(.x)
+    # Add a column to identify which inflation rate this came from
+    df %>% mutate(source_g = .x)
+  })
+
+# 3. Pivot the table so each variable (c, h, y, etc.) is a column for easier reading and later interpretation
+consolidated_ss_table <- master_table %>%
+  pivot_wider(names_from = Variable, values_from = Value) %>%
+  
+  # Clean up the name for better sorting
+  mutate(g_val = as.numeric(gsub("_", ".", gsub("ss_g_", "", source_g)))) %>%
+  arrange(g_val)
+
+# 4. View the result
+print(consolidated_ss_table)
+
+```
+
+
+## Set Up Utility Loss Function
+```{r def function utility loss}
+
+# Define Function to calculate delta C for each money growth
+calculate_delta_C <- function(U_bar, C_star, H_star, B_val = B_val){
+  return(exp(U_bar + (B_val * H_star)) - C_star)
+}
+
+```
+
+
+## Calculate Utility Loss
+```{r calculate utility loss}
+
+B_val <- 2.86
+
+U_bar_benchmark <- log(consolidated_ss_table$c[1]) - B_val * consolidated_ss_table$h[1]
+
+# Use the above function to calculate losses for all money growth scenarios
+utility_results <- consolidated_ss_table %>%
+  mutate(
+    delta_C = calculate_delta_C(U_bar = U_bar_benchmark, 
+                                C_star = c, 
+                                H_star = h, 
+                                B_val = B_val),
+    
+    # Calculate loss as % of steady-state consumption
+    loss_c_pct = (delta_C / c) * 100,
+    
+    # Calculate loss as % of steady-state output (GNP)
+    loss_y_pct = (delta_C / y) * 100
+  ) %>%
+  mutate(across(c(loss_c_pct, loss_y_pct), ~round(.x, 3)))
+
+print(utility_results %>% select(g_val, c, h, delta_C, loss_c_pct, loss_y_pct))
+
+```
+
+
+## Build the Table 
+```{r build utility loss table}
+
+# Prepare and Transpose Data
+latex_data <- utility_results %>%
+  mutate(
+    # Corrected function name to case_when
+    inflation_label = case_when(
+      g_val == 0.99  ~ "-4 Percent",
+      g_val == 1.00  ~ "0.0 Percent",
+      g_val == 1.024 ~ "10 Percent",
+      g_val == 1.19  ~ "100 Percent",
+      g_val == 1.41  ~ "400 Percent",
+      TRUE           ~ as.character(g_val)
+    )
+  ) %>%
+  # Selecting the Variables we need from the df to construct our table
+  select(
+    inflation_label,
+    `$g =$` = g_val,
+    Output = y,
+    Consumption = c,
+    Investment = x,
+    `Capital Stock` = k,
+    Hours = h,
+    `$\\Delta C/C \\times 100$` = loss_c_pct,
+    `$\\Delta C/Y \\times 100$` = loss_y_pct
+  ) %>%
+  
+  # Transpose variables to rows and inflation rates to columns
+  pivot_longer(cols = -inflation_label, names_to = "Variable", values_to = "Value") %>%
+  pivot_wider(names_from = inflation_label, values_from = Value)
+
+# Now Generate LaTeX Code
+latex_output <- kable(latex_data, 
+      format = "latex", 
+      booktabs = TRUE, 
+      escape = FALSE, # Allows LaTeX math like $\Delta$ to render
+      digits = 3,
+      align = "lccccc",
+      caption = " Welfare Costs Associated with Different Annual Growth Rates of Money") %>%
+  kable_styling(latex_options = c("hold_position")) %>%
+  add_header_above(c(" " = 1, "Annual Inflation Rate" = 5)) %>%
+  pack_rows("Steady State", 2, 6) %>%
+  pack_rows("Welfare Costs", 7, 8)
+
+# Print to console
+cat(latex_output)
+
+# Save to a .tex file
+writeLines(latex_output, "Table2_CooleyHansen_Replication.tex")
+
+```
+
+
+
+# Replicate Table 1 with simulation Data
+This is table one again, but we use simulation data to stay close to the authors methodology.
+
+## Load data for inspection
+Here you can load the data and look at it.
+
+```{r simul data loads}
+
+# Define array dimensions. This is taken from dynare directly. We use 50 simulations of 115 periods each and extract 18 variables
+n_vars <- 18
+n_periods <- 115
+n_reps <- 50
+
+# Path to the binary file
+file_path <- "models/dmm_g_15_simul/Output/dmm_g_15_simul_simul" 
+
+# Read the raw binary data
+# Dynare writes these as 'double' (8 bytes)
+file_size <- file.info(file_path)$size
+raw_data_15 <- readBin(file_path, what = "numeric", n = file_size / 8, size = 8)
+
+# Reshape into a 3D Array
+# Data is written in the following way: by variable, then period, then replication
+# Order and rearange the array according to this: [Variables x Periods x Replications]
+sim_data_3d <- array(raw_data_15, dim = c(n_vars, n_periods, n_reps))
+
+# Verification to see if correct
+print(dim(sim_data_3d)) # Check should be same dimension as set above (18 115 50)
+
+```
+```{r price specificities}
+
+# Inside the loop for replication 'i'
+# 1. Extract log_phat and log_g
+log_phat <- sim_data_3d[18, , 1]
+log_g    <- log(sim_data_3d[10, , 1]) # Assuming row 'idx_g' is raw g
+
+# 2. Reconstruct Log Money and Log Price
+log_m    <- cumsum(log_g)
+log_p    <- log_phat + log_m
+
+# 3. Filter and Calculate Correlation
+cycle_p  <- hpfilter(log_p, freq = 1600)$cycle
+cycle_y  <- hpfilter(sim_data_3d[12, , 1], freq = 1600)$cycle
+
+corr_p_y <- cor(cycle_p, cycle_y)
+
+```
+
+
+
+
+## Simulation Data Processing function
+
+```{r recreate table 1 with simul method}
+
+get_table_1_moments <- function(file_path, n_vars = 18, n_periods = 115, n_reps = 50, base_var_idx = 12) {
+  
+  # Import Binary Data
+  file_size <- file.info(file_path)$size
+  raw_data <- readBin(file_path, what = "numeric", n = file_size / 8, size = 8)
+  
+  # Reshape: [Variables x Periods x Replications]
+  sim_data_3d <- array(raw_data, dim = c(n_vars, n_periods, n_reps))
+  
+  # Initialize storage
+  sd_matrix   <- matrix(NA, nrow = n_vars, ncol = n_reps)
+  corr_matrix <- matrix(NA, nrow = n_vars, ncol = n_reps)
+  
+  # Indices for Price Level Reconstruction
+  idx_phat <- 18 # log_p_hat
+  idx_g    <- 10 # raw g
+  
+  # 2. Loop through Replications
+  for (i in 1:n_reps) {
+    
+    # Base variable (Output) for correlation
+    base_raw   <- sim_data_3d[base_var_idx, , i]
+    base_cycle <- hpfilter(base_raw, freq = 1600)$cycle
+    
+    for (v in 1:n_vars) {
+      
+      # SPECIAL CASE: Price Level (Variable 18)
+      if (v == 18) {
+        # log(P) = log(phat) + cumsum(log(g))
+        log_phat <- sim_data_3d[idx_phat, , i]
+        log_g    <- log(sim_data_3d[idx_g, , i])
+        
+        # Reconstruct non-stationary log Price Level
+        log_P    <- log_phat + cumsum(log_g)
+        target_cycle <- hpfilter(log_P, freq = 1600)$cycle
+        
+      } else {
+        # STANDARD CASE: Use the raw simulated series (for 17 other variables)
+        raw_series <- sim_data_3d[v, , i]
+        
+        if(!is.na(sd(raw_series)) && sd(raw_series) > 1e-10) {
+          target_cycle <- hpfilter(raw_series, freq = 1600)$cycle
+        } else {
+          target_cycle <- NULL
+        }
+      }
+      
+      # Store results if cycle was successfully calculated
+      if (!is.null(target_cycle)) {
+        sd_matrix[v, i]   <- sd(target_cycle) * 100
+        corr_matrix[v, i] <- cor(target_cycle, base_cycle)
+      } else {
+        sd_matrix[v, i]   <- 0
+        corr_matrix[v, i] <- NA
+      }
+    }
+  }
+  
+  # Set Variable Names (binary file doesn't provide it)
+  var_names_clean <- c(
+    "c", "h", "k", "x", "y", "w", "r", "p_hat", "z", "g", 
+    "k_state", "Output", "Consumption", "Investment", "Hours", 
+    "Capital Stock", "Productivity", "Price Level"
+  )
+  
+  # Build Final Dataframe
+  final_table <- data.frame(
+    Variable        = var_names_clean,
+    Mean_SD         = rowMeans(sd_matrix, na.rm = TRUE),
+    SD_of_SD        = apply(sd_matrix, 1, sd, na.rm = TRUE),
+    Mean_Corr_Base  = rowMeans(corr_matrix, na.rm = TRUE),
+    SD_of_Corr      = apply(corr_matrix, 1, sd, na.rm = TRUE),
+    stringsAsFactors = FALSE
+  )
+  
+  return(final_table)
+}
+
+```
+
+```{r using the functions on our simulated data}
+
+# Set three different file paths for three different economies
+filepath_constant <- "models/dmm_g_constant_simul/Output/dmm_g_constant_simul_simul"
+filepath_015 <- "models/dmm_g_015_simul/Output/dmm_g_015_simul_simul"
+filepath_15 <- "models/dmm_g_15_simul/Output/dmm_g_15_simul_simul"
+
+# Load data for three different economies
+df_constant <- get_table_1_moments(filepath_constant, base_var_idx = 12)
+df_015 <- get_table_1_moments(filepath_015, base_var_idx = 12)
+df_15 <- get_table_1_moments(filepath_15, base_var_idx = 12)
+
+```
+
+
+
+## Build table
+
+```{r building the simul table}
+
+# Prepare U.S. Data loaded at the beginning of the document
+summary_fixed <- summary_table %>%
+  rename(SD_US = `Standard Deviation`, 
+         Corr_US = `Correlation with Output`)
+
+# Join all simulation dataframes
+# Get all 4 values needed. Plus we rename columns to distinguish between economies
+final_master_df <- df_constant %>%
+  
+  # G constant growth Economy (no AR(1))
+  select(Variable, Mean_SD_Const = Mean_SD, SE_SD_Const = SD_of_SD, 
+         Mean_Corr_Const = Mean_Corr_Base, SE_Corr_Const = SD_of_Corr) %>%
+  # g = 1.015 Economy & AR(1)
+  left_join(df_015 %>% 
+              select(Variable, Mean_SD_015 = Mean_SD, SE_SD_015 = SD_of_SD, 
+                     Mean_Corr_015 = Mean_Corr_Base, SE_Corr_015 = SD_of_Corr), by = "Variable") %>%
+  # g = 1.15 Economy & AR(1)
+  left_join(df_15 %>% 
+              select(Variable, Mean_SD_115 = Mean_SD, SE_SD_115 = SD_of_SD, 
+                     Mean_Corr_115 = Mean_Corr_Base, SE_Corr_115 = SD_of_Corr), by = "Variable") %>%
+  left_join(summary_fixed, by = "Variable")
+
+# Reorder rows to match Paper Exactly
+row_order <- c("Output", "Consumption", "Investment", "Capital Stock", "Hours", "Productivity", "Price Level")
+final_master_df <- final_master_df %>%
+  mutate(Variable = factor(Variable, levels = row_order)) %>%
+  arrange(Variable)
+
+
+# Helper function to format values as "Mean (SE)"
+# Example gives 1.76 (0.72) as Mean (SD)
+fmt_stat <- function(mean_val, se_val) {
+  ifelse(is.na(mean_val), "", 
+         paste0(sprintf("%.2f", mean_val), " (", sprintf("%.2f", se_val), ")"))
+}
+
+# Apply formatting to create display columns
+table_display <- final_master_df %>%
+  mutate(
+    US_SD_Disp    = sprintf("%.2f", SD_US),
+    US_Corr_Disp  = sprintf("%.2f", Corr_US),
+    Const_SD_Disp = fmt_stat(Mean_SD_Const, SE_SD_Const),
+    Const_Corr_Disp = fmt_stat(Mean_Corr_Const, SE_Corr_Const),
+    G015_SD_Disp  = fmt_stat(Mean_SD_015, SE_SD_015),
+    G015_Corr_Disp = fmt_stat(Mean_Corr_015, SE_Corr_015),
+    G115_SD_Disp  = fmt_stat(Mean_SD_115, SE_SD_115),
+    G115_Corr_Disp = fmt_stat(Mean_Corr_115, SE_Corr_115)
+  ) %>%
+  mutate(across(everything(), ~gsub("NA", "", .x))) # Remove NA
+
+# Standard labels matching the 5 columns: 
+# Variable, US_SD, US_Corr, Model_SD, Model_Corr
+table_final_clean <- table_display %>%
+  filter(!is.na(Variable)) %>%
+  # Remove NA that are characters:
+  filter(Variable != "NA")
+
+col_labels <- c("Series", 
+                "Stan. Dev.", "Corr w/ Output", 
+                "Stan. Dev. (SE)", "Corr w/ Output (SE)")
+
+# --- TOP TABLE: U.S. and Constant Growth ---
+row1_latex <- table_final_clean %>%
+  select(Variable, US_SD_Disp, US_Corr_Disp, Const_SD_Disp, Const_Corr_Disp) %>%
+  kable(format = "latex", 
+        booktabs = TRUE, 
+        align = "lcccc", 
+        col.names = col_labels, # Now length 5 matches select length 5
+        escape = FALSE) %>%
+  add_header_above(c(" " = 1, 
+                     "Quarterly U.S. Time Series" = 2, 
+                     "Constant Growth Rate" = 2))
+
+# --- BOTTOM TABLE: AR Models ---
+# Same col_labels can be used here as it also selects 5 columns
+row2_latex <- table_final_clean %>%
+  select(Variable, G015_SD_Disp, G015_Corr_Disp, G115_SD_Disp, G115_Corr_Disp) %>%
+  kable(format = "latex", 
+        booktabs = TRUE, 
+        align = "lcccc", 
+        col.names = col_labels, 
+        escape = FALSE) %>%
+  add_header_above(c(" " = 1, 
+                     "AR Growth (g=1.015)" = 2, 
+                     "AR Growth (g=1.15)" = 2))
+
+# --- OUTPUT COMBINED --- 
+cat("\\begin{table}[ht]\n\\centering\n\\caption{Table 1---Standard Deviations and Correlations with Output (Standard Errors in Parentheses)}\n")
+cat(as.character(row1_latex))
+cat("\n\\vspace{0.8cm}\n\n") 
+cat(as.character(row2_latex))
+cat("\n\\end{table}")
+
+```
+
+
+
+
+

@@ -83,7 +83,7 @@ rm(series_map)
 
 ```{r log and detrending, warning=FALSE, message=FALSE}
 
-# 1. Define a helper function to Log, Detrend, and Extract the Cycle
+# 1. Define a helper function to Log, detrend, and extract the cycle
 get_cyclical_component <- function(x, freq = 1600) {
 
     # Take the log
@@ -94,9 +94,6 @@ get_cyclical_component <- function(x, freq = 1600) {
     
     # Return the cyclical component
     return(hp_result$cycle) }
-
-
-
 
 data = na.omit(data)
 
@@ -127,7 +124,6 @@ summary_table <- map_dfr(names(cyclical_data)[names(cyclical_data) != "date"], f
     `Standard Deviation` = round(sd_val, 2),
     `Correlation with Output` = round(cor_val, 2))})
 
-
 summary_table <- summary_table %>%
   mutate(Variable = case_when(
     Variable == "output"         ~ "Output",
@@ -141,7 +137,6 @@ summary_table <- summary_table %>%
   ))
 
 print(summary_table)
-
 
 ```
 
@@ -203,7 +198,7 @@ print(table_output_corr_15) # For this it may be 1-0.72738 ? that would be exact
 
 
 
-```{r make tabel 1}
+```{r make table 1 with standard dynare method}
 
 # 1. Rename columns in your summary table to match the simulation columns for the join
 # This prevents NAs and ensures "Standard Deviation" aligns with "Standard Deviation"
@@ -255,6 +250,7 @@ final_table_1 %>%
                      "Economy with Constant Growth Rate" = 2, 
                      "Economy with AR Growth (g=1.015)" = 2, 
                      "Economy with AR Growth (g=1.15)" = 2))
+
 ```
 
 
@@ -306,12 +302,11 @@ cat(as.character(row1_latex))
 cat("\n\\vspace{0.8cm}\n\n") # Vertical gap between the two stacked tables
 cat(as.character(row2_latex))
 cat("\n\\end{table}")
+
 ```
 
 
-
-
-# Caluclate Utility Loss
+# Calculate Utility Loss
 
 ## Load Steady State Values
 ```{r load ss values}
@@ -373,6 +368,7 @@ print(consolidated_ss_table)
 calculate_delta_C <- function(U_bar, C_star, H_star, B_val = B_val){
   return(exp(U_bar + (B_val * H_star)) - C_star)
 }
+
 ```
 
 
@@ -466,8 +462,7 @@ This is table one again, but we use simulation data to stay close to the authors
 ## Load data for inspection
 Here you can load the data and look at it.
 
-```{r}
-library(mFilter)
+```{r simul data loads}
 
 # Define array dimensions. This is taken from dynare directly. We use 50 simulations of 115 periods each and extract 18 variables
 n_vars <- 18
@@ -491,9 +486,8 @@ sim_data_3d <- array(raw_data_15, dim = c(n_vars, n_periods, n_reps))
 print(dim(sim_data_3d)) # Check should be same dimension as set above (18 115 50)
 
 ```
+```{r price specificities}
 
-
-```{r}
 # Inside the loop for replication 'i'
 # 1. Extract log_phat and log_g
 log_phat <- sim_data_3d[18, , 1]
@@ -508,6 +502,7 @@ cycle_p  <- hpfilter(log_p, freq = 1600)$cycle
 cycle_y  <- hpfilter(sim_data_3d[12, , 1], freq = 1600)$cycle
 
 corr_p_y <- cor(cycle_p, cycle_y)
+
 ```
 
 
@@ -515,9 +510,7 @@ corr_p_y <- cor(cycle_p, cycle_y)
 
 ## Simulation Data Processing function
 
-
-```{r}
-### NEW WITH CORRECT PRICE LEVEL
+```{r recreate table 1 with simul method}
 
 get_table_1_moments <- function(file_path, n_vars = 18, n_periods = 115, n_reps = 50, base_var_idx = 12) {
   
@@ -596,30 +589,28 @@ get_table_1_moments <- function(file_path, n_vars = 18, n_periods = 115, n_reps 
   
   return(final_table)
 }
+
 ```
 
+```{r using the functions on our simulated data}
 
-
-```{r}
 # Set three different file paths for three different economies
 filepath_constant <- "models/dmm_g_constant_simul/Output/dmm_g_constant_simul_simul"
 filepath_015 <- "models/dmm_g_015_simul/Output/dmm_g_015_simul_simul"
 filepath_15 <- "models/dmm_g_15_simul/Output/dmm_g_15_simul_simul"
-```
 
-```{r}
 # Load data for three different economies
 df_constant <- get_table_1_moments(filepath_constant, base_var_idx = 12)
 df_015 <- get_table_1_moments(filepath_015, base_var_idx = 12)
 df_15 <- get_table_1_moments(filepath_15, base_var_idx = 12)
+
 ```
+
+
 
 ## Build table
 
-```{r}
-library(dplyr)
-library(knitr)
-library(kableExtra)
+```{r building the simul table}
 
 # Prepare U.S. Data loaded at the beginning of the document
 summary_fixed <- summary_table %>%
@@ -648,10 +639,8 @@ row_order <- c("Output", "Consumption", "Investment", "Capital Stock", "Hours", 
 final_master_df <- final_master_df %>%
   mutate(Variable = factor(Variable, levels = row_order)) %>%
   arrange(Variable)
-```
 
 
-```{r}
 # Helper function to format values as "Mean (SE)"
 # Example gives 1.76 (0.72) as Mean (SD)
 fmt_stat <- function(mean_val, se_val) {
@@ -672,9 +661,7 @@ table_display <- final_master_df %>%
     G115_Corr_Disp = fmt_stat(Mean_Corr_115, SE_Corr_115)
   ) %>%
   mutate(across(everything(), ~gsub("NA", "", .x))) # Remove NA
-```
 
-```{r}
 # Standard labels matching the 5 columns: 
 # Variable, US_SD, US_Corr, Model_SD, Model_Corr
 table_final_clean <- table_display %>%
@@ -711,13 +698,13 @@ row2_latex <- table_final_clean %>%
                      "AR Growth (g=1.015)" = 2, 
                      "AR Growth (g=1.15)" = 2))
 
-
-# --- OUTPUT COMBINED ---
+# --- OUTPUT COMBINED --- 
 cat("\\begin{table}[ht]\n\\centering\n\\caption{Table 1---Standard Deviations and Correlations with Output (Standard Errors in Parentheses)}\n")
 cat(as.character(row1_latex))
 cat("\n\\vspace{0.8cm}\n\n") 
 cat(as.character(row2_latex))
 cat("\n\\end{table}")
+
 ```
 
 

@@ -1,6 +1,6 @@
 Starting Dynare (version 6.5).
 Calling Dynare with arguments: none
-Preprocessing time: 0h00m00s.
+Preprocessing time: 0h00m01s.
 
 STEADY-STATE RESULTS:
 
@@ -159,5 +159,5 @@ Note: numbers do not add up to 100 due to i) non-zero correlation of simulated s
 CALCULATED MOMENTS FOR NOMINAL VARIABLES
 Correlation(Output, Nominal Price Level):  -0.2316
 ----------------------------------------------------
-Total computing time : 0h01m18s
+Total computing time : 0h00m53s
 Note: warning(s) encountered in MATLAB/Octave code

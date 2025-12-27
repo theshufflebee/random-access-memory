@@ -458,6 +458,233 @@ writeLines(latex_output, "Table2_CooleyHansen_Replication.tex")
 
 
 
+# Replicate Table 1 with simulation Data
+This is table one again, but we use simulation data to stay close to the authors methodology.
+
+## Load data for inspection
+Here you can load the data and look at it.
+
+```{r}
+library(mFilter)
+
+# Define array dimensions. This is taken from dynare directly. We use 50 simulations of 115 periods each and extract 18 variables
+n_vars <- 18
+n_periods <- 115
+n_reps <- 50
+
+# Path to the binary file
+file_path <- "models/dmm_g_15_simul/Output/dmm_g_15_simul_simul" 
+
+# Read the raw binary data
+# Dynare writes these as 'double' (8 bytes)
+file_size <- file.info(file_path)$size
+raw_data_15 <- readBin(file_path, what = "numeric", n = file_size / 8, size = 8)
+
+# Reshape into a 3D Array
+# Data is written in the following way: by variable, then period, then replication
+# Order and rearange the array according to this: [Variables x Periods x Replications]
+sim_data_3d <- array(raw_data_15, dim = c(n_vars, n_periods, n_reps))
+
+# Verification to see if correct
+print(dim(sim_data_3d)) # Check should be same dimension as set above (18 115 50)
+
+```
+
+
+
+
+## Simulation Data Processing function
+
+```{r}
+library(mFilter)
+
+get_table_1_moments <- function(file_path, n_vars = 18, n_periods = 115, n_reps = 50, base_var_idx = 12) {
+  # Base Var is log output, needed for table replication (correlation with output)
+  
+  # Import the Binary file where data is stored after using simul_replic in Dynare
+  # Dynare binary files are double-precision (8 bytes)
+  file_size <- file.info(file_path)$size
+  raw_data <- readBin(file_path, what = "numeric", n = file_size / 8, size = 8)
+  
+  # Same reshaping as above: [Variables x Periods x Replications]
+  sim_data_3d <- array(raw_data, dim = c(n_vars, n_periods, n_reps))
+  
+  # Initialize storage matrices
+  sd_matrix   <- matrix(NA, nrow = n_vars, ncol = n_reps)
+  corr_matrix <- matrix(NA, nrow = n_vars, ncol = n_reps)
+  
+  # 4. Loop through Replications and Variables
+  for (i in 1:n_reps) {
+    
+    # Extract Data for one simulation and apply HP-filter
+    # Base var is Variable to show correlation with, in our case Output
+    base_raw   <- sim_data_3d[base_var_idx, , i]
+    base_cycle <- hpfilter(base_raw, freq = 1600)$cycle
+    
+    for (v in 1:n_vars) {
+      raw_series <- sim_data_3d[v, , i]
+      
+      # This check to see if there is variation -> checks if data is bad or missing
+      if(sd(raw_series) > 1e-10) {
+        target_cycle <- hpfilter(raw_series, freq = 1600)$cycle
+        
+        # store the sd and correlation of individual simulations
+        sd_matrix[v, i]   <- sd(target_cycle) * 100
+        corr_matrix[v, i] <- cor(target_cycle, base_cycle)
+      } else {
+        sd_matrix[v, i]   <- 0
+        corr_matrix[v, i] <- NA
+      }
+    }
+  }
+  
+  # Define Variable Names -> Variables always ordered same way, Logs needed by us are at the end
+  var_names_clean <- c(
+    "c", "h", "k", "x", "y", "w", "r", "p_hat", "z", "g", 
+    "k_state", "Output", "Consumption", "Investment", "Hours", 
+    "Capital Stock", "Productivity", "Price Level"
+  )
+  
+  # 6. Build Final Dataframe
+  final_table <- data.frame(
+    Variable        = var_names_clean, # Set names
+    Mean_SD         = rowMeans(sd_matrix, na.rm = TRUE), # Take mean of sd (reported value)
+    SD_of_SD        = apply(sd_matrix, 1, sd, na.rm = TRUE), # Calculate sd of the sd (reported in parentheses)
+    Mean_Corr_Base  = rowMeans(corr_matrix, na.rm = TRUE), # Take mean of correlation with output (reported value)
+    SD_of_Corr      = apply(corr_matrix, 1, sd, na.rm = TRUE), # Take sd of correlations (reported in parenteses)
+    stringsAsFactors = FALSE
+  )
+  
+  return(final_table)
+}
+
+# Quick example
+results_015_table <- get_table_1_moments(file_path, base_var_idx = 12)
+print(results_015_table)
+```
+
+
+```{r}
+# Set three different file paths for three different economies
+filepath_constant <- "models/dmm_g_constant_simul/Output/dmm_g_constant_simul_simul"
+filepath_015 <- "models/dmm_g_015_simul/Output/dmm_g_015_simul_simul"
+filepath_15 <- "models/dmm_g_15_simul/Output/dmm_g_15_simul_simul"
+```
+
+```{r}
+# Load data for three different economies
+df_constant <- get_table_1_moments(filepath_constant, base_var_idx = 12)
+df_015 <- get_table_1_moments(filepath_015, base_var_idx = 12)
+df_15 <- get_table_1_moments(filepath_15, base_var_idx = 12)
+```
+
+## Build table
+
+```{r}
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+# Prepare U.S. Data loaded at the beginning of the document
+summary_fixed <- summary_table %>%
+  rename(SD_US = `Standard Deviation`, 
+         Corr_US = `Correlation with Output`)
+
+# Join all simulation dataframes
+# Get all 4 values needed. Plus we rename columns to distinguish between economies
+final_master_df <- df_constant %>%
+  
+  # G constant growth Economy (no AR(1))
+  select(Variable, Mean_SD_Const = Mean_SD, SE_SD_Const = SD_of_SD, 
+         Mean_Corr_Const = Mean_Corr_Base, SE_Corr_Const = SD_of_Corr) %>%
+  # g = 1.015 Economy & AR(1)
+  left_join(df_015 %>% 
+              select(Variable, Mean_SD_015 = Mean_SD, SE_SD_015 = SD_of_SD, 
+                     Mean_Corr_015 = Mean_Corr_Base, SE_Corr_015 = SD_of_Corr), by = "Variable") %>%
+  # g = 1.15 Economy & AR(1)
+  left_join(df_15 %>% 
+              select(Variable, Mean_SD_115 = Mean_SD, SE_SD_115 = SD_of_SD, 
+                     Mean_Corr_115 = Mean_Corr_Base, SE_Corr_115 = SD_of_Corr), by = "Variable") %>%
+  left_join(summary_fixed, by = "Variable")
+
+# Reorder rows to match Paper Exactly
+row_order <- c("Output", "Consumption", "Investment", "Capital Stock", "Hours", "Productivity", "Price Level")
+final_master_df <- final_master_df %>%
+  mutate(Variable = factor(Variable, levels = row_order)) %>%
+  arrange(Variable)
+```
+
+
+```{r}
+# Helper function to format values as "Mean (SE)"
+# Example gives 1.76 (0.72) as Mean (SD)
+fmt_stat <- function(mean_val, se_val) {
+  ifelse(is.na(mean_val), "", 
+         paste0(sprintf("%.2f", mean_val), " (", sprintf("%.2f", se_val), ")"))
+}
+
+# Apply formatting to create display columns
+table_display <- final_master_df %>%
+  mutate(
+    US_SD_Disp    = sprintf("%.2f", SD_US),
+    US_Corr_Disp  = sprintf("%.2f", Corr_US),
+    Const_SD_Disp = fmt_stat(Mean_SD_Const, SE_SD_Const),
+    Const_Corr_Disp = fmt_stat(Mean_Corr_Const, SE_Corr_Const),
+    G015_SD_Disp  = fmt_stat(Mean_SD_015, SE_SD_015),
+    G015_Corr_Disp = fmt_stat(Mean_Corr_015, SE_Corr_015),
+    G115_SD_Disp  = fmt_stat(Mean_SD_115, SE_SD_115),
+    G115_Corr_Disp = fmt_stat(Mean_Corr_115, SE_Corr_115)
+  ) %>%
+  mutate(across(everything(), ~gsub("NA", "", .x))) # Remove NA
+```
+
+```{r}
+# Standard labels matching the 5 columns: 
+# Variable, US_SD, US_Corr, Model_SD, Model_Corr
+table_final_clean <- table_display %>%
+  filter(!is.na(Variable)) %>%
+  # Remove NA that are characters:
+  filter(Variable != "NA")
+
+col_labels <- c("Series", 
+                "Stan. Dev.", "Corr w/ Output", 
+                "Stan. Dev. (SE)", "Corr w/ Output (SE)")
+
+# --- TOP TABLE: U.S. and Constant Growth ---
+row1_latex <- table_final_clean %>%
+  select(Variable, US_SD_Disp, US_Corr_Disp, Const_SD_Disp, Const_Corr_Disp) %>%
+  kable(format = "latex", 
+        booktabs = TRUE, 
+        align = "lcccc", 
+        col.names = col_labels, # Now length 5 matches select length 5
+        escape = FALSE) %>%
+  add_header_above(c(" " = 1, 
+                     "Quarterly U.S. Time Series" = 2, 
+                     "Constant Growth Rate" = 2))
+
+# --- BOTTOM TABLE: AR Models ---
+# Same col_labels can be used here as it also selects 5 columns
+row2_latex <- table_final_clean %>%
+  select(Variable, G015_SD_Disp, G015_Corr_Disp, G115_SD_Disp, G115_Corr_Disp) %>%
+  kable(format = "latex", 
+        booktabs = TRUE, 
+        align = "lcccc", 
+        col.names = col_labels, 
+        escape = FALSE) %>%
+  add_header_above(c(" " = 1, 
+                     "AR Growth (g=1.015)" = 2, 
+                     "AR Growth (g=1.15)" = 2))
+
+
+# --- OUTPUT COMBINED ---
+cat("\\begin{table}[ht]\n\\centering\n\\caption{Table 1---Standard Deviations and Correlations with Output (Standard Errors in Parentheses)}\n")
+cat(as.character(row1_latex))
+cat("\n\\vspace{0.8cm}\n\n") 
+cat(as.character(row2_latex))
+cat("\n\\end{table}")
+```
+
+
 
 
 

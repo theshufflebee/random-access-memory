@@ -486,6 +486,7 @@ sim_data_3d <- array(raw_data_15, dim = c(n_vars, n_periods, n_reps))
 print(dim(sim_data_3d)) # Check should be same dimension as set above (18 115 50)
 
 ```
+
 ```{r price specificities}
 
 # Inside the loop for replication 'i'

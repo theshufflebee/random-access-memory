@@ -32,6 +32,8 @@ require(purrr) #data?
 require(readr)
 require(stringr)
 require(tidyr)
+library(mFilter)
+
 
 getwd()
 setwd("...") 
@@ -491,44 +493,81 @@ print(dim(sim_data_3d)) # Check should be same dimension as set above (18 115 50
 ```
 
 
+```{r}
+# Inside the loop for replication 'i'
+# 1. Extract log_phat and log_g
+log_phat <- sim_data_3d[18, , 1]
+log_g    <- log(sim_data_3d[10, , 1]) # Assuming row 'idx_g' is raw g
+
+# 2. Reconstruct Log Money and Log Price
+log_m    <- cumsum(log_g)
+log_p    <- log_phat + log_m
+
+# 3. Filter and Calculate Correlation
+cycle_p  <- hpfilter(log_p, freq = 1600)$cycle
+cycle_y  <- hpfilter(sim_data_3d[12, , 1], freq = 1600)$cycle
+
+corr_p_y <- cor(cycle_p, cycle_y)
+```
+
+
 
 
 ## Simulation Data Processing function
 
+
 ```{r}
-library(mFilter)
+### NEW WITH CORRECT PRICE LEVEL
 
 get_table_1_moments <- function(file_path, n_vars = 18, n_periods = 115, n_reps = 50, base_var_idx = 12) {
-  # Base Var is log output, needed for table replication (correlation with output)
   
-  # Import the Binary file where data is stored after using simul_replic in Dynare
-  # Dynare binary files are double-precision (8 bytes)
+  # Import Binary Data
   file_size <- file.info(file_path)$size
   raw_data <- readBin(file_path, what = "numeric", n = file_size / 8, size = 8)
   
-  # Same reshaping as above: [Variables x Periods x Replications]
+  # Reshape: [Variables x Periods x Replications]
   sim_data_3d <- array(raw_data, dim = c(n_vars, n_periods, n_reps))
   
-  # Initialize storage matrices
+  # Initialize storage
   sd_matrix   <- matrix(NA, nrow = n_vars, ncol = n_reps)
   corr_matrix <- matrix(NA, nrow = n_vars, ncol = n_reps)
   
-  # 4. Loop through Replications and Variables
+  # Indices for Price Level Reconstruction
+  idx_phat <- 18 # log_p_hat
+  idx_g    <- 10 # raw g
+  
+  # 2. Loop through Replications
   for (i in 1:n_reps) {
     
-    # Extract Data for one simulation and apply HP-filter
-    # Base var is Variable to show correlation with, in our case Output
+    # Base variable (Output) for correlation
     base_raw   <- sim_data_3d[base_var_idx, , i]
     base_cycle <- hpfilter(base_raw, freq = 1600)$cycle
     
     for (v in 1:n_vars) {
-      raw_series <- sim_data_3d[v, , i]
       
-      # This check to see if there is variation -> checks if data is bad or missing
-      if(sd(raw_series) > 1e-10) {
-        target_cycle <- hpfilter(raw_series, freq = 1600)$cycle
+      # SPECIAL CASE: Price Level (Variable 18)
+      if (v == 18) {
+        # log(P) = log(phat) + cumsum(log(g))
+        log_phat <- sim_data_3d[idx_phat, , i]
+        log_g    <- log(sim_data_3d[idx_g, , i])
         
-        # store the sd and correlation of individual simulations
+        # Reconstruct non-stationary log Price Level
+        log_P    <- log_phat + cumsum(log_g)
+        target_cycle <- hpfilter(log_P, freq = 1600)$cycle
+        
+      } else {
+        # STANDARD CASE: Use the raw simulated series (for 17 other variables)
+        raw_series <- sim_data_3d[v, , i]
+        
+        if(!is.na(sd(raw_series)) && sd(raw_series) > 1e-10) {
+          target_cycle <- hpfilter(raw_series, freq = 1600)$cycle
+        } else {
+          target_cycle <- NULL
+        }
+      }
+      
+      # Store results if cycle was successfully calculated
+      if (!is.null(target_cycle)) {
         sd_matrix[v, i]   <- sd(target_cycle) * 100
         corr_matrix[v, i] <- cor(target_cycle, base_cycle)
       } else {
@@ -538,30 +577,27 @@ get_table_1_moments <- function(file_path, n_vars = 18, n_periods = 115, n_reps 
     }
   }
   
-  # Define Variable Names -> Variables always ordered same way, Logs needed by us are at the end
+  # Set Variable Names (binary file doesn't provide it)
   var_names_clean <- c(
     "c", "h", "k", "x", "y", "w", "r", "p_hat", "z", "g", 
     "k_state", "Output", "Consumption", "Investment", "Hours", 
     "Capital Stock", "Productivity", "Price Level"
   )
   
-  # 6. Build Final Dataframe
+  # Build Final Dataframe
   final_table <- data.frame(
-    Variable        = var_names_clean, # Set names
-    Mean_SD         = rowMeans(sd_matrix, na.rm = TRUE), # Take mean of sd (reported value)
-    SD_of_SD        = apply(sd_matrix, 1, sd, na.rm = TRUE), # Calculate sd of the sd (reported in parentheses)
-    Mean_Corr_Base  = rowMeans(corr_matrix, na.rm = TRUE), # Take mean of correlation with output (reported value)
-    SD_of_Corr      = apply(corr_matrix, 1, sd, na.rm = TRUE), # Take sd of correlations (reported in parenteses)
+    Variable        = var_names_clean,
+    Mean_SD         = rowMeans(sd_matrix, na.rm = TRUE),
+    SD_of_SD        = apply(sd_matrix, 1, sd, na.rm = TRUE),
+    Mean_Corr_Base  = rowMeans(corr_matrix, na.rm = TRUE),
+    SD_of_Corr      = apply(corr_matrix, 1, sd, na.rm = TRUE),
     stringsAsFactors = FALSE
   )
   
   return(final_table)
 }
-
-# Quick example
-results_015_table <- get_table_1_moments(file_path, base_var_idx = 12)
-print(results_015_table)
 ```
+
 
 
 ```{r}

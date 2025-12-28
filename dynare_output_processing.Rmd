@@ -200,13 +200,13 @@ print(table_output_corr_15) # For this it may be 1-0.72738 ? that would be exact
 
 ```{r make table 1 with standard dynare method}
 
-# 1. Rename columns in your summary table to match the simulation columns for the join
+# Rename columns in your summary table to match the simulation columns for the join
 # This prevents NAs and ensures "Standard Deviation" aligns with "Standard Deviation"
 summary_fixed <- summary_table %>%
   rename(SD_US = `Standard Deviation`, 
          Corr_US = `Correlation with Output`)
 
-# 2. Merge all tables using the 'Variable' column
+# Merge all tables using the 'Variable' column
 # We rename simulation columns during the join to keep them unique
 final_table_1 <- table_output_corr_constant %>%
   rename(SD_Const = `Standard Deviation`, 
@@ -219,7 +219,7 @@ final_table_1 <- table_output_corr_constant %>%
   rename(SD_115 = `Standard Deviation`, 
          Corr_115 = `Correlation with Output`)
 
-# 3. Reorder rows to match the Cooley-Hansen Paper exactly
+# Reorder rows to match the Cooley-Hansen Paper exactly
 # Ensure "Capital Stock" matches the simulation's "Capital" if necessary
 final_table_1 <- final_table_1 %>%
   mutate(Variable = case_when(
@@ -233,7 +233,7 @@ final_table_1 <- final_table_1 %>%
   mutate(Variable = factor(Variable, levels = row_order)) %>%
   arrange(Variable)
 
-# 4. Generate the LaTeX Output with Grouped Headers and Exact Lines
+# Generate the LaTeX Output with Grouped Headers and Exact Lines
 final_table_1 %>%
   select(Variable, SD_US, Corr_US, SD_Const, Corr_Const, SD_015, Corr_015, SD_115, Corr_115) %>%
   mutate(across(where(is.numeric), ~sprintf("%.2f", .x))) %>%
@@ -256,7 +256,7 @@ final_table_1 %>%
 
 ```{r make table}
 
-# 1. Clean the dataframe for display
+# Clean the dataframe for display
 table_for_latex <- final_table_1 %>%
   mutate(across(where(is.numeric), ~sprintf("%.2f", .x))) %>%
   mutate(across(everything(), ~gsub("NA", "", .x)))
@@ -266,7 +266,7 @@ col_labels <- c("Series",
                 "Stan. Dev.", "Corr w/ Output", 
                 "Stan. Dev.", "Corr w/ Output")
 
-# 2. Top Row: U.S. and Constant Growth
+# Top Row: U.S. and Constant Growth
 row1_latex <- table_for_latex %>%
   select(Variable, SD_US, Corr_US, SD_Const, Corr_Const) %>%
   kable(
@@ -281,7 +281,7 @@ row1_latex <- table_for_latex %>%
     "Constant Growth Rate" = 2
   ))
 
-# 3. Bottom Row: AR Models
+# Bottom Row: AR Models
 row2_latex <- table_for_latex %>%
   select(Variable, SD_015, Corr_015, SD_115, Corr_115) %>%
   kable(
@@ -296,7 +296,7 @@ row2_latex <- table_for_latex %>%
     "AR Growth (g=1.15)" = 2
   ))
 
-# 4. Print the combined code to console
+# Print the combined code to console
 cat("\\begin{table}[ht]\n\\centering\n\\caption{Table 1—Standard Deviations and Correlations with Output}\n")
 cat(as.character(row1_latex))
 cat("\n\\vspace{0.8cm}\n\n") # Vertical gap between the two stacked tables
@@ -335,10 +335,10 @@ for (fl in files) {
 ## Build the full Dataframe
 ```{r build ss dataframe}
 
-# 1. Get the names of all the ss_g_ data frames you just created
+# Get the names of all the ss_g_ data frames you just created
 ss_object_names <- ls(pattern = "^ss_g_")
 
-# 2. Combine them into one long data frame
+# Combine them into one long data frame
 master_table <- ss_object_names %>%
   map_df(~ {
     # Get the actual data frame using its name
@@ -347,7 +347,7 @@ master_table <- ss_object_names %>%
     df %>% mutate(source_g = .x)
   })
 
-# 3. Pivot the table so each variable (c, h, y, etc.) is a column for easier reading and later interpretation
+# Pivot the table so each variable (c, h, y, etc.) is a column for easier reading and later interpretation
 consolidated_ss_table <- master_table %>%
   pivot_wider(names_from = Variable, values_from = Value) %>%
   
@@ -355,7 +355,7 @@ consolidated_ss_table <- master_table %>%
   mutate(g_val = as.numeric(gsub("_", ".", gsub("ss_g_", "", source_g)))) %>%
   arrange(g_val)
 
-# 4. View the result
+# View the result
 print(consolidated_ss_table)
 
 ```
@@ -487,27 +487,6 @@ print(dim(sim_data_3d)) # Check should be same dimension as set above (18 115 50
 
 ```
 
-```{r price specificities}
-
-# Inside the loop for replication 'i'
-# 1. Extract log_phat and log_g
-log_phat <- sim_data_3d[18, , 1]
-log_g    <- log(sim_data_3d[10, , 1]) # Assuming row 'idx_g' is raw g
-
-# 2. Reconstruct Log Money and Log Price
-log_m    <- cumsum(log_g)
-log_p    <- log_phat + log_m
-
-# 3. Filter and Calculate Correlation
-cycle_p  <- hpfilter(log_p, freq = 1600)$cycle
-cycle_y  <- hpfilter(sim_data_3d[12, , 1], freq = 1600)$cycle
-
-corr_p_y <- cor(cycle_p, cycle_y)
-
-```
-
-
-
 
 ## Simulation Data Processing function
 
@@ -539,7 +518,7 @@ get_table_1_moments <- function(file_path, n_vars = 18, n_periods = 115, n_reps 
     
     for (v in 1:n_vars) {
       
-      # SPECIAL CASE: Price Level (Variable 18)
+      # SPECIAL CASE: Price Level (Variable 18) -> manual adjustment
       if (v == 18) {
         # log(P) = log(phat) + cumsum(log(g))
         log_phat <- sim_data_3d[idx_phat, , i]
@@ -571,7 +550,7 @@ get_table_1_moments <- function(file_path, n_vars = 18, n_periods = 115, n_reps 
     }
   }
   
-  # Set Variable Names (binary file doesn't provide it)
+  # Set Variable Names (binary file doesn't provide it) order is like we specified in Dynare
   var_names_clean <- c(
     "c", "h", "k", "x", "y", "w", "r", "p_hat", "z", "g", 
     "k_state", "Output", "Consumption", "Investment", "Hours", 
@@ -643,7 +622,7 @@ final_master_df <- final_master_df %>%
 
 
 # Helper function to format values as "Mean (SE)"
-# Example gives 1.76 (0.72) as Mean (SD)
+# Example: gives 1.76 (0.72) as Mean (SD)
 fmt_stat <- function(mean_val, se_val) {
   ifelse(is.na(mean_val), "", 
          paste0(sprintf("%.2f", mean_val), " (", sprintf("%.2f", se_val), ")"))

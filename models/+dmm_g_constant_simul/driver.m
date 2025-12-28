@@ -520,7 +520,7 @@ M_.params(1) = 0.95;
 gamma = M_.params(1);
 M_.params(2) = 0.48;
 alpha = M_.params(2);
-M_.params(7) = 1.015;
+M_.params(7) = 1.024;
 g_bar = M_.params(7);
 %
 % INITVAL instructions

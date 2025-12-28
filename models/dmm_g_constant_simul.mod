@@ -35,7 +35,7 @@ set_dynare_seed(42);
     B = 2.86;
     gamma = 0.95;
     alpha = 0.48;
-    g_bar = 1.015;
+    g_bar = 1.024;
 
 
 // Model
@@ -128,7 +128,7 @@ end;
 // Computation
 //***********************************************************
 
-// We provide shocks on a duration of 115, but with periods=1000 otherwise we do not
+// We simulate 115 periods 50 times and store the realized values, otherwise we do not
 //  obtain values close to the original paper. We include the HP filter to detrend 
 //  the variables. We look at the effect of shocks on the key variables of Table 1.
 stoch_simul(nograph, hp_filter=1600, order=2, periods=115, simul_replic=50);

@@ -1,7 +1,7 @@
 ---
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 # random-access-memory
 # Replication Guide: DMM Model Analysis
@@ -46,8 +46,9 @@ Once the Dynare simulations have generated, use R to compile the final tables an
 
 ### Setup & Execution
 1. Open the provided `.Rmd` (R Markdown) file in R Studio.
-2. **Check Dependencies:** Ensure all required packages are installed. The `require()` function will tell you if any package is missing
-3. **One-Click Run:** Click the **Knit** or **Run All** button. The script is configured to automatically ingest the CSV files generated in the previous steps and output the formatted replication tables.
+2. Make sure to set your FRED API Key in you environment file
+3. **Check Dependencies:** Ensure all required packages are installed. The `require()` function will tell you if any package is missing
+4. **One-Click Run:** Click the **Knit** or **Run All** button. The script is configured to automatically ingest the CSV files generated in the previous steps and output the formatted replication tables.
 
 > **Note:** If you encounter a "package not found" error, run `install.packages("package_name")` in the R console before re-running the `.Rmd`.
 

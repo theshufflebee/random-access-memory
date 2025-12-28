@@ -519,7 +519,7 @@ M_.params(1) = 0.95;
 gamma = M_.params(1);
 M_.params(2) = 0.48;
 alpha = M_.params(2);
-M_.params(7) = 1.024;
+M_.params(7) = 1.014;
 g_bar = M_.params(7);
 %
 % INITVAL instructions
@@ -574,7 +574,7 @@ simulated_values = oo_.endo_simul;
     % Create and open the CSV file
     fid = fopen('steady_state_values_g_1_024.csv', 'w');
     
-    % Write the header / variale names
+    % Write the header / variale names  
     fprintf(fid, 'Variable,Value\n');
     %Loop through variables and write each row
     for i = 1:length(names_ss)

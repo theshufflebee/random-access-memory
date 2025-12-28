@@ -32,7 +32,7 @@ require(purrr) #data?
 require(readr)
 require(stringr)
 require(tidyr)
-library(mFilter)
+require(mFilter)
 
 
 getwd()
@@ -182,9 +182,9 @@ extract_business_cycle_moments <- function(mat_results) {
 
 ```{r load results mat file, warning=FALSE, message=FALSE}
 
-results_constant_growth <- readMat("models/dmm_g_constant/Output/dmm_g_constant_results.mat")
-results_015_growth <- readMat("models/dmm_g_1_015/Output/dmm_g_1_015_results.mat")
-results_15_growth <- readMat("models/dmm_g_1_15/Output/dmm_g_1_15_results.mat")
+results_constant_growth <- readMat("models/dmm_g_constant_simul/Output/dmm_g_constant_simul_results.mat")
+results_015_growth <- readMat("models/dmm_g_015_simul/Output/dmm_g_015_simul_results.mat")
+results_15_growth <- readMat("models/dmm_g_15_simul/Output/dmm_g_15_simul_results.mat")
 
 table_output_corr_constant <- extract_business_cycle_moments(results_constant_growth)
 table_output_corr_015 <- extract_business_cycle_moments(results_015_growth)

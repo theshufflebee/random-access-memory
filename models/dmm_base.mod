@@ -34,7 +34,7 @@ graphics_toolkit("gnuplot");
     B = 2.86;
     gamma = 0.95;
     alpha = 0.48;
-    g_bar = 1.024;
+    g_bar = 1.014;
 
 
 // Model
@@ -136,6 +136,7 @@ simulated_values = oo_.endo_simul;
 
 // we export steady state values directly to a CSV file via verbatim commands
 // Adjust the name of the file as needed, especially for different g_bar values
+// in our replication we adjust g above and here in the file name accordingly to extract steady state values
 
 verbatim;
     % Extract variable names and their steady state values
@@ -145,7 +146,7 @@ verbatim;
     % Create and open the CSV file
     fid = fopen('steady_state_values_g_1_024.csv', 'w');
     
-    % Write the header / variale names
+    % Write the header / variale names  
     fprintf(fid, 'Variable,Value\n');
 
     %Loop through variables and write each row

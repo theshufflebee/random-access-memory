@@ -407,21 +407,30 @@ assumptions. Run the following three files sequentially:</p>
 <tr class="odd">
 <td align="left"><code>dmm_g_constant_simul.mod</code></td>
 <td align="left">Baseline simulation with constant growth (no AR(1)
-Process).</td>
+Process)*.</td>
 </tr>
 <tr class="even">
+<td align="left"><code>dmm_g_constant_simul_alt.mod</code></td>
+<td align="left">Identical to file above but <span class="math inline">\(\bar{g}\)</span> is handled differently*.</td>
+</tr>
+<tr class="odd">
 <td align="left"><code>dmm_g_015_simul.mod</code></td>
 <td align="left">Simulation with <span class="math inline">\(\bar{g} =
 1.015\)</span> parameters.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>dmm_g_15_simul.mod</code></td>
 <td align="left">Simulation with <span class="math inline">\(\bar{g} =
 1.15\)</span> parameters.</td>
 </tr>
 </tbody>
 </table>
-<hr />
+<p><small>*Note: While the actual approach to run the model with a
+constant g is to remove the AR(1) equation, as we did in the
+“dmm_g_constant_simul_alt.mod” file, the output is not fit for the R
+pipeline. We thus go for a different approach, where we merely set the
+variance of xi to zero, in “dmm_g_constant_simul.mod”. Both yield the
+exact same results</small> —</p>
 </div>
 <div id="r-studio-data-processing-final-tables" class="section level2">
 <h2>3. R Studio: Data Processing &amp; Final Tables</h2>

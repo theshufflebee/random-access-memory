@@ -1,5 +1,9 @@
 // RBC model w/ Inflation Tax 
 //***********************************************************
+// As we have a constant growth rate here with no AR(1) process, we just set the shock = 0
+// This is so our simulations are only driven by technology shocks and because it is easier to
+// extract the data in R. The dmm_g_constant_simul_alt.mod file replicates these results by
+// removing the AR(1) process and turning g_bar into a parameter. Functionally these are the same results.
 
 graphics_toolkit("gnuplot");
 set_dynare_seed(42);

@@ -1,7 +1,7 @@
 ---
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 # random-access-memory
 # Replication Guide: DMM Model Analysis
@@ -34,12 +34,15 @@ Table 1 focuses on simulation results under different growth/policy assumptions.
 
 | File to Run | Description |
 | :--- | :--- |
-| `dmm_g_constant_simul.mod` | Baseline simulation with constant growth (no AR(1) Process). |
-| `dmm_g_constant_simul_alt.mod` | Identical to file above but $\bar{g}$ is handled differently . |
+| `dmm_g_constant_simul.mod` | Baseline simulation with constant growth (no AR(1) Process)*. |
+| `dmm_g_constant_simul_alt.mod` | Identical to file above but $\bar{g}$ is handled differently*. |
 | `dmm_g_015_simul.mod` | Simulation with $\bar{g} = 1.015$ parameters. |
 | `dmm_g_15_simul.mod` | Simulation with $\bar{g} = 1.15$ parameters. |
 
-`dmm_g_constant_simul_alt.mod` is here for completeness. For more info check the mod file direcly
+<small>*Note: While the actual approach to run the model with a constant g is to remove the AR(1) equation,
+as we did in the "dmm_g_constant_simul_alt.mod" file, the output is not fit for the R pipeline. We thus go
+for a different approach, where we merely set the variance of xi to zero, in "dmm_g_constant_simul.mod".
+Both yield the exact same results</small>
 ---
 
 ## 3. R Studio: Data Processing & Final Tables

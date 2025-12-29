@@ -1,7 +1,7 @@
 ---
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 # random-access-memory
 # Replication Guide: DMM Model Analysis
@@ -35,8 +35,8 @@ Table 1 focuses on simulation results under different growth/policy assumptions.
 | File to Run | Description |
 | :--- | :--- |
 | `dmm_g_constant_simul.mod` | Baseline simulation with constant growth (no AR(1) Process). |
-| `dmm_g_015_simul.mod` | Simulation with $g = 0.15$ parameters. |
-| `dmm_g_15_simul.mod` | Simulation with $g = 1.5$ parameters. |
+| `dmm_g_015_simul.mod` | Simulation with $\bar{g} = 1.015$ parameters. |
+| `dmm_g_15_simul.mod` | Simulation with $\bar{g} = 1.15$ parameters. |
 
 ---
 

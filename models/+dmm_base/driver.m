@@ -519,7 +519,7 @@ M_.params(1) = 0.95;
 gamma = M_.params(1);
 M_.params(2) = 0.48;
 alpha = M_.params(2);
-M_.params(7) = 1.014;
+M_.params(7) = 1.024;
 g_bar = M_.params(7);
 %
 % INITVAL instructions
@@ -563,6 +563,7 @@ options_.graph_format = {'pdf';'eps'};
 options_.hp_filter = 1600;
 options_.irf = 115;
 options_.nodisplay = true;
+options_.nograph = true;
 options_.order = 2;
 options_.periods = 1000;
 var_list_ = {'log_y';'log_c';'log_x';'log_k_state';'log_h';'log_prod';'log_p_hat';'z';'g'};

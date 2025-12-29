@@ -1,16 +1,6 @@
 Starting Dynare (version 6.5).
 Calling Dynare with arguments: none
-Preprocessing time: 0h00m01s.
-warning: using the gnuplot graphics toolkit is discouraged
-
-The gnuplot graphics toolkit is not actively maintained and has a number
-of limitations that are unlikely to be fixed.  Communication with gnuplot
-uses a one-directional pipe and limited information is passed back to the
-Octave interpreter so most changes made interactively in the plot window
-will not be reflected in the graphics properties managed by Octave.  For
-example, if the plot window is closed with a mouse click, Octave will not
-be notified and will not update its internal list of open figure windows.
-The qt toolkit is recommended instead.
+Preprocessing time: 0h00m00s.
 
 STEADY-STATE RESULTS:
 
@@ -200,5 +190,5 @@ log_prod                 120.13              0.00            120.13
 log_p_hat                120.13              0.00            120.13
 Note: numbers do not add up to 100 due to i) non-zero correlation of simulated shocks in small samples and ii) nonlinearity
 
-Total computing time : 0h00m07s
+Total computing time : 0h00m03s
 Note: warning(s) encountered in MATLAB/Octave code

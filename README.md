@@ -35,9 +35,11 @@ Table 1 focuses on simulation results under different growth/policy assumptions.
 | File to Run | Description |
 | :--- | :--- |
 | `dmm_g_constant_simul.mod` | Baseline simulation with constant growth (no AR(1) Process). |
+| `dmm_g_constant_simul_alt.mod` | Identical to file above but $\bar{g}$ is handled differently . |
 | `dmm_g_015_simul.mod` | Simulation with $\bar{g} = 1.015$ parameters. |
 | `dmm_g_15_simul.mod` | Simulation with $\bar{g} = 1.15$ parameters. |
 
+`dmm_g_constant_simul_alt.mod` is here for completeness. For more info check the mod file direcly
 ---
 
 ## 3. R Studio: Data Processing & Final Tables

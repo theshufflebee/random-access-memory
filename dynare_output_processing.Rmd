@@ -485,8 +485,8 @@ table_final_clean <- table_display %>%
   filter(Variable != "NA")
 
 col_labels <- c("Series", 
-                "Stan. Dev. (SE)", "Corr w/ Output (SE)", 
-                "Stan. Dev. (SE)", "Corr w/ Output (SE)")
+                "Stan. Dev.", "Corr w/ Output", 
+                "Stan. Dev.", "Corr w/ Output")
 
 # --- TOP TABLE: U.S. and Constant Growth ---
 row1_latex <- table_final_clean %>%

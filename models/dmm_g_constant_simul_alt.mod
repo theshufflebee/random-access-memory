@@ -1,5 +1,10 @@
 // RBC model w/ Inflation Tax 
 //***********************************************************
+// This file only exists to replicate the results of dmm_g_constant_simul.mod where g is a parameter
+// rather than an AR(1) process with shocks = 0. This is functionally equivalent but the previous file
+// allows for easier extraction of data in R for analysis. So this is essentially just to show that both
+// approaches yield the same results.
+
 
 graphics_toolkit("gnuplot");
 set_dynare_seed(42);
@@ -18,9 +23,9 @@ set_dynare_seed(42);
     // Finally, we also have the 2 exogenous shocks, epislon and xi, and the parameters 
     //  all in the same notation as in our paper.
 
-    var c h k x y w r p_hat z g;
+    var c h k x y w r p_hat z;
     var k_state log_y log_c log_x log_h log_k_state log_prod log_p_hat; 
-    varexo epsilon xi;
+    varexo epsilon;
     parameters gamma alpha theta B delta beta g_bar;
 
 
@@ -49,7 +54,7 @@ model;
     //  They are totally equivalent however (log vs exp)
 
     beta * w / (w(+1)) * (1-delta+r(+1)) = 1;                 // Euler
-    beta / (g(+1) * c(+1) * p_hat(+1)) = B / (w * p_hat);     // Labour Supply
+    beta / (g_bar * c(+1) * p_hat(+1)) = B / (w * p_hat);     // Labour Supply
     p_hat * c = 1;                                            // CIA
     k + 1 / (p_hat) = r * k(-1) + (1-delta) * k(-1) + w * h;  // BC 
     w = (1-theta) * z * (k(-1) / h)^theta;                    // Labour Demand
@@ -57,7 +62,7 @@ model;
     y = z*(k(-1))^theta * h^(1-theta);                        // Production
     x = y - c;                                                // Market Clearing
     log(z) = gamma * log(z(-1)) + epsilon;                    // Technology
-    log(g) = (1-alpha)*log(g_bar) + alpha*log(g(-1)) + xi;    // Money Growth
+    // No equation for Money Growth as g constant is now a parameter
 
 
     // As described earlier, to match the original paper's 
@@ -86,11 +91,10 @@ initval;
     // Base model as derived in section 2.3.2, but in a different
     //  order based on Dynare requirements. 
 
-    g = g_bar;
     z = 1;
     r = 1 / beta - (1-delta);
     w = (1-theta) * (r / theta)^(theta / (theta-1));
-    c = (beta * w / (g * B));
+    c = (beta * w / (g_bar * B));
     p_hat = 1/c;
     k = c / (r / theta - delta);
     h = (r / theta)^(1 / (1-theta)) * k;
@@ -116,15 +120,10 @@ check;
 
 // Specification of Shocks
 //***********************************************************
-// As we have a constant growth rate here with no AR(1) process, we just set the shock = 0
-// This is so our simulations are only driven by technology shocks and because it is easier to
-// extract the data in R. The dmm_g_constant_simul_alt.mod file replicates these results by
-// removing the AR(1) process and truning g_bar into a parameter. Functionally these are the same results.
 
 shocks;
 
     var epsilon = 0.00721^2;
-    var xi = 0.0;
 
 end;
 
@@ -143,4 +142,3 @@ simulated_values = oo_.endo_simul;
 // Adjust the name of the file as needed, especially for different g_bar values
 
 // simulated_steady_state_values = oo_.steady_state; 
-

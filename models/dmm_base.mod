@@ -34,7 +34,7 @@ graphics_toolkit("gnuplot");
     B = 2.86;
     gamma = 0.95;
     alpha = 0.48;
-    g_bar = 1.014;
+    g_bar = 1.024;
 
 
 // Model
